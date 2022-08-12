@@ -12,6 +12,7 @@
 #include <syncstream>
 #include <array>
 #include <immer/vector.hpp>
+#include <immer/array.hpp>
 #include "impcool_bool_cv_pack.h"
 #include "impcool_thread_unit.h"
 
@@ -33,11 +34,14 @@ namespace impcool
         //using concurrency_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
         using imptask_t = std::function<void()>;
         using impvec_t = immer::vector<imptask_t>;
-        using impthread_unit_t = impcool_thread_unit;
+        using impthread_unit_t = ThreadUnit;
         using impvec_thread_t = immer::vector<impthread_unit_t>;
+        
     private:
         //TODO implement benchmarking and auto-balancing of tasks.
-        std::array<impvec_thread_t, NumThreads> m_threadList{};
+        immer::array<impthread_unit_t> m_threadList{NumThreads};
+        //impvec_thread_t m_threadList{ NumThreads };
+
     public:
         impcool_thread_pool() = default;
     public:
@@ -50,16 +54,24 @@ namespace impcool
         template <typename F, typename... A>
         void push_infinite_task(const F& task, const A&... args)
         {
-            // iterate list, find placement for task.
+            // iterate list, find placement for task (thread with fewest tasks)
             size_t minIndex{};
             for(size_t i = 0; i < m_threadList.size(); i++)
             {
-                const auto taskCount = m_threadList[i].get_number_of_tasks();
+                const auto taskCount = m_threadList[i].GetNumberOfTasks();
                 if (taskCount < minIndex)
                     minIndex = i;
             }
             // add to manager thread.
-            m_threadList[minIndex].push_infinite_task(task, args...);
+            //m_threadList[minIndex].push_infinite_task(task, args...);
+        }
+
+        void pause_all_threads_ordered() const
+        {
+	        for(const auto &elem : m_threadList)
+	        {
+		        
+	        }
         }
     private:
      //   [[nodiscard]]
