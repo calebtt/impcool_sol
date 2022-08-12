@@ -138,10 +138,6 @@ namespace impcool
         /// <returns> true on thread created, false otherwise. </returns>
         bool CreateThread()
         {
-            //if(m_taskListPtr == nullptr)
-            //{
-            //    m_taskListPtr = std::make_shared<imm_vec_tasks_t>();
-            //}
             if (m_workThreadObj == nullptr)
             {
                 m_isStopRequested.store(false);
