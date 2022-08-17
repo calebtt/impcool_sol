@@ -56,7 +56,7 @@ int main()
 
 	std::getline(std::cin, buffer);
 	MultiPrint("Adding another task, while it's running...\n");
-	tc.PushInfiniteTaskBack([]() { std::cout << "Another wonderful task added...\n"; });
+	tc.PushInfiniteTaskFront([]() { std::cout << "Another wonderful task added...\n"; });
 	// Pausing the thread, will wait for the entire list of tasks to
 	// be executed first.
 	std::getline(std::cin, buffer);
@@ -91,12 +91,4 @@ int main()
 	tc.SetPauseValueUnordered(false);
 	// Enter to exit here, testing destructor.
 	std::getline(std::cin, buffer);
-
-	//impcool::impcool_thread_pool itp{};
-	//itp.push_infinite_task([]() { std::cout << "Visual Studio uber alles1.\n"; });
-	//itp.push_infinite_task([]() { std::cout << "Visual Studio uber alles2.\n"; });
-	//itp.push_infinite_task([]() { std::cout << "Visual Studio uber alles3.\n"; });
-	//itp.push_infinite_task([]() { std::cout << "Visual Studio uber alles4.\n"; });
-	
-	
 }
