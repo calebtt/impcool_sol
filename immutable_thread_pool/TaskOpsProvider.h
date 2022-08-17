@@ -14,6 +14,8 @@
 #include <cstddef>
 #include <memory>
 #include <functional>
+#include <algorithm>
+#include <iterator>
 
 namespace impcool
 {
@@ -56,10 +58,14 @@ namespace impcool
                 taskList = TaskContainer_t{ TaskType_t{ [task, args...] { task(args...); }} } + taskList;
         }
 
-
-		static void AddTaskAtIndex(TaskContainer_t &taskList, std::size_t ind)
+        template <typename Lambda_t, typename... ArgsList_t>
+		static void AddTaskAtIndex(TaskContainer_t &taskList, std::size_t ind, const Lambda_t& task, const ArgsList_t&... args)
 		{
-			
+            if constexpr (sizeof...(args) == 0)
+                taskList.emplace(std::advance(taskList.begin(), ind), TaskContainer_t{ TaskType_t{task} });
+            else
+                taskList.emplace(std::advance(taskList.begin(), ind), TaskContainer_t{ TaskType_t{ [task, args...] { task(args...); }} });
+
 		}
 		/// <summary> Returns the number of tasks in the task list.</summary>
 		[[nodiscard]]
