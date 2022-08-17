@@ -17,7 +17,7 @@ namespace impcool
 {
     /// <summary> Pack of types used with a condition variable, and the functions
     /// that operate on them. Default constructed object has is_condition_true set to false. </summary>
-    struct bool_cv_pack
+    struct BoolCvPack
     {
         // Some type aliases used in the condition variable packs, and possibly elsewhere.
         using SharedData = bool;
@@ -35,35 +35,25 @@ namespace impcool
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
         CvMutex running_mutex{};
     public:
-        bool_cv_pack() = default;
-        ~bool_cv_pack() = default;
-
-        bool_cv_pack(const bool_cv_pack& other)
-        {
-            is_condition_true.exchange(other.is_condition_true.load());
-        }
-
-        bool_cv_pack(bool_cv_pack&& other) noexcept
-        {
-            is_condition_true.exchange(other.is_condition_true);
-        }
-
-        bool_cv_pack& operator=(const bool_cv_pack& other)
-        {
+        BoolCvPack() = default;
+        ~BoolCvPack() = default;
+        BoolCvPack(const BoolCvPack& other) { is_condition_true.exchange(other.is_condition_true.load()); }
+        BoolCvPack(BoolCvPack&& other) noexcept { is_condition_true.exchange(other.is_condition_true); }
+        BoolCvPack& operator=(const BoolCvPack& other)
+    	{
 	        if (this == &other)
 		        return *this;
             is_condition_true.exchange(other.is_condition_true.load());
 	        return *this;
         }
-
-        bool_cv_pack& operator=(bool_cv_pack&& other) noexcept
+        BoolCvPack& operator=(BoolCvPack&& other) noexcept
         {
 	        if (this == &other)
 		        return *this;
             is_condition_true.exchange(other.is_condition_true);
 	        return *this;
         }
-
+    public:
         /// <summary> Waits for a boolean SharedData atomic to return <b>false</b>.
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
@@ -76,7 +66,6 @@ namespace impcool
                     return !is_condition_true;
                 });
         }
-
         /// <summary> Waits for a boolean SharedData atomic to return <b>true</b>.
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
@@ -89,7 +78,6 @@ namespace impcool
                     return is_condition_true;
                 });
         }
-
         /// <summary> Called to update the shared state variable. Notifies all waiting threads
         /// to wake up and perform their wait check. </summary>
         /// <param name="trueOrEnabled"> true to enable, presumably. </param>

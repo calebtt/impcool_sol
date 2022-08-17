@@ -28,7 +28,7 @@ namespace impcool
     /// Non-moveable.
     /// </remarks>
     template<unsigned NumThreads = 4>
-    class impcool_thread_pool
+    class ThreadPool
     {
     public:
         //using concurrency_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
@@ -43,7 +43,7 @@ namespace impcool
         //impvec_thread_t m_threadList{ NumThreads };
 
     public:
-        impcool_thread_pool() = default;
+        ThreadPool() = default;
     public:
         /// <summary> Push a function with zero or more arguments, but no return value, into the task list management object(s).
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>

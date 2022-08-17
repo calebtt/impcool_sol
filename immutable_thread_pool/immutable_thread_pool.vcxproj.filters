@@ -29,8 +29,5 @@
     <ClInclude Include="impcool_thread_unit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TaskOpsProvider.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

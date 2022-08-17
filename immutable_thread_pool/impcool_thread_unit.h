@@ -37,7 +37,7 @@ namespace impcool
     public:
         using TaskWrapper_t = std::function<void()>;
         using thread_t = std::thread;
-        using bool_cv_t = bool_cv_pack;
+        using bool_cv_t = BoolCvPack;
         using atomic_t = std::atomic<bool>;
         using TaskContainer_t = std::vector<TaskWrapper_t>;
         using unique_thread_t = std::unique_ptr<thread_t>;
