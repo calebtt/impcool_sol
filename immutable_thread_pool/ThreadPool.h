@@ -13,8 +13,8 @@
 #include <array>
 #include <immer/vector.hpp>
 #include <immer/array.hpp>
-#include "impcool_bool_cv_pack.h"
-#include "impcool_thread_unit.h"
+#include "BoolCvPack.h"
+#include "ThreadUnit.h"
 
 namespace impcool
 {
@@ -27,21 +27,19 @@ namespace impcool
     /// Non-copyable.
     /// Non-moveable.
     /// </remarks>
-    template<unsigned NumThreads = 4>
+    template<unsigned NumThreads = 4, typename ThreadProvider_t = impcool::ThreadUnit>
     class ThreadPool
     {
+        //TODO implement benchmarking and auto-balancing of tasks.
     public:
         //using concurrency_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
-        using imptask_t = std::function<void()>;
-        using impvec_t = immer::vector<imptask_t>;
-        using impthread_unit_t = ThreadUnit;
-        using impvec_thread_t = immer::vector<impthread_unit_t>;
-        
+        using Task_t = std::function<void()>;
+        using TaskContainer_t = immer::vector<Task_t>;
+        using ThreadUnit_t = ThreadProvider_t;
+        using ThreadUnitList_t = immer::vector<ThreadUnit_t>;
     private:
-        //TODO implement benchmarking and auto-balancing of tasks.
-        immer::array<impthread_unit_t> m_threadList{NumThreads};
-        //impvec_thread_t m_threadList{ NumThreads };
-
+        // the list of threads
+        std::array<ThreadUnit_t, NumThreads> m_threadList;
     public:
         ThreadPool() = default;
     public:
@@ -52,26 +50,23 @@ namespace impcool
         /// <param name="task"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
         template <typename F, typename... A>
-        void push_infinite_task(const F& task, const A&... args)
+        void PushInfiniteTaskBack(const F& task, const A&... args)
         {
             // iterate list, find placement for task (thread with fewest tasks)
-            size_t minIndex{};
-            for(size_t i = 0; i < m_threadList.size(); i++)
+            auto minIt = std::min_element(m_threadList.begin(), m_threadList.end(), [](auto &lhs, auto &rhs)
             {
-                const auto taskCount = m_threadList[i].GetNumberOfTasks();
-                if (taskCount < minIndex)
-                    minIndex = i;
-            }
-            // add to manager thread.
-            //m_threadList[minIndex].push_infinite_task(task, args...);
+                    return lhs.GetNumberOfTasks() < rhs.GetNumberOfTasks();
+            });
+            minIt->PushInfiniteTaskBack(task, args...);
         }
 
-        void pause_all_threads_ordered() const
+        void PauseAllThreadsOrdered() const
         {
-	        for(const auto &elem : m_threadList)
-	        {
-		        
-	        }
+	        for(const auto &elem : m_threadList) { elem.SetPauseOrdered(true); }
+        }
+        void PauseAllThreadsUnordered() const
+        {
+            for (const auto& elem : m_threadList) { elem.SetPauseUnordered(true); }
         }
     private:
      //   [[nodiscard]]

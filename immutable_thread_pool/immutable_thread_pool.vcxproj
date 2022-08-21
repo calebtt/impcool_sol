@@ -132,9 +132,10 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="impcool_bool_cv_pack.h" />
-    <ClInclude Include="immutable_thread_pool.h" />
-    <ClInclude Include="impcool_thread_unit.h" />
+    <ClInclude Include="DataProtector.h" />
+    <ClInclude Include="BoolCvPack.h" />
+    <ClInclude Include="ThreadPool.h" />
+    <ClInclude Include="ThreadUnit.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

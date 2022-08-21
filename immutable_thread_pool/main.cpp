@@ -4,8 +4,8 @@
 #include <iostream>
 #include <string>
 
-#include "immutable_thread_pool.h"
-#include "impcool_thread_unit.h"
+#include "ThreadPool.h"
+#include "ThreadUnit.h"
 
 
 void AddLotsOfTasks(auto &tc, auto &os, std::size_t count, const bool addFirstTwo = true)
@@ -36,23 +36,16 @@ void AddLotsOfTasks(auto &tc, auto &os, std::size_t count, const bool addFirstTw
 			}, i);
 	}
 }
-//InfiniteThreadPool test
-int main()
+
+void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint)
 {
-	//multi-threaded output obj
-	std::osyncstream os(std::cout);
-	const auto MultiPrint = [&](const auto message)
-	{
-		os << message;
-		os.emit();
-	};
 	//thread unit object
 	impcool::ThreadUnit tc;
 
+	std::string buffer;
 	// Add lots of tasks that perform simple work, printing a message.
 	// Tasks of the argument-less form as well as tasks with arguments.
 	AddLotsOfTasks(tc, os, 5);
-	std::string buffer;
 
 	std::getline(std::cin, buffer);
 	MultiPrint("Adding another task, while it's running...\n");
@@ -90,5 +83,39 @@ int main()
 	std::cout << "Unpausing again...\n";
 	tc.SetPauseValueUnordered(false);
 	// Enter to exit here, testing destructor.
+	std::getline(std::cin, buffer);
+}
+
+//InfiniteThreadPool test
+int main()
+{
+	//multi-threaded output obj
+	std::osyncstream os(std::cout);
+	const auto MultiPrint = [&](const auto message)
+	{
+		os << message;
+		os.emit();
+	};
+
+	//TestThreadUnit(os, MultiPrint, tc);
+	MultiPrint("Beginning the test of the ThreadPool class...\n");
+	std::string buffer;
+	std::getline(std::cin, buffer);
+	impcool::ThreadPool<> tp;
+	tp.PushInfiniteTaskBack([&]()
+		{
+			os << "ThreadPool task #0 running...\n";
+			os.emit();
+			std::this_thread::sleep_for(std::chrono::milliseconds(750));
+		});
+	for (size_t i = 0; i < 20; i++)
+	{
+		tp.PushInfiniteTaskBack([&](auto taskNumber)
+			{
+				os << "Task with args: [" << taskNumber << "] running...\n";
+				os.emit();
+				std::this_thread::sleep_for(std::chrono::milliseconds(750));
+			}, i);
+	}
 	std::getline(std::cin, buffer);
 }

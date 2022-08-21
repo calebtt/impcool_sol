@@ -16,17 +16,18 @@
 #include <vector>
 #include <condition_variable>
 #include <syncstream>
-#include "impcool_bool_cv_pack.h"
+#include "BoolCvPack.h"
+#include "DataProtector.h"
 
 namespace impcool
 {
-    /// <summary> Helper class for working with threads and task lists.
+    /// <summary> Class for working with a thread and task list.
     /// Manages running a thread pool thread. The thread can be started, paused, and destroyed.
     /// The task list can be simply returned as it is immutable, or counted.
-    /// A low-level granular kind of access is desireable here, if possible. </summary>
+    /// A low-level granular kind of access is desirable here, if possible. </summary>
     /// <remarks> This class is also useable on it's own, if so desired. There are two mutually exclusive
     /// pause conditions, each with their own setter function. </remarks>
-    struct ThreadUnit
+    class ThreadUnit
     {
     private:
         // Factory funcs to make it easier to switch to a different smart pointer type, if desired.
@@ -36,32 +37,31 @@ namespace impcool
         auto MakeSharedSmart(auto ...args) { return std::make_shared<T>(args...); }
     public:
         using TaskWrapper_t = std::function<void()>;
-        using thread_t = std::thread;
-        using bool_cv_t = BoolCvPack;
-        using atomic_t = std::atomic<bool>;
-        using TaskContainer_t = std::vector<TaskWrapper_t>;
-        using unique_thread_t = std::unique_ptr<thread_t>;
+        using Thread_t = std::thread;
+        using BoolCv_t = BoolCvPack;
+        using AtomicBool_t = std::atomic<bool>;
+        using TaskContainer_t = immer::vector<TaskWrapper_t>;
+        using UniquePtrThread_t = std::unique_ptr<Thread_t>;
     private:
         /// <summary> Constant used to store the loop delay time period when no tasks are present. </summary>
         static constexpr std::chrono::milliseconds EmptyWaitTime{ std::chrono::milliseconds(20) };
         /// <summary> Condition variable + bool pack, to notify a specific thread that stop is requested,
         /// for task list update/maintenance aka thread destruction. </summary>
-        atomic_t m_isStopRequested{ false };
+        AtomicBool_t m_isStopRequested{ false };
         /// <summary> Condition variable + bool pack, to notify a specific thread that pause is requested.
         /// Pauses running thread pool thread, so the tasks are not run. Call update_state after pausing to wake
         /// the thread pool func and continue processing. </summary>
-        //imp_bool_cv_ptr_t m_isOrderedPauseRequested{ MakeUniqueSmart<imp_bool_cv_t>() };
-        bool_cv_t m_isOrderedPauseRequested{ };
+        BoolCv_t m_isOrderedPauseRequested{ };
         /// <summary> Condition variable + bool pack, to notify a specific thread that pause is requested.
         /// Pauses running thread pool thread, so the tasks are not run. Call update_state after pausing to wake
         /// the thread pool func and continue processing. </summary>
         /// <remarks> For the immediate pause functionality. Pauses in the middle of executing the task list. </remarks>
-        bool_cv_t m_isUnorderedPauseRequested{ };
+        BoolCv_t m_isUnorderedPauseRequested{ };
         /// <summary> Condition variable + bool pack, to notify when the pause operation has completed,
         /// and the thread is in a "paused" state. </summary>
-        bool_cv_t m_isPauseCompleted{ };
+        BoolCv_t m_isPauseCompleted{ };
         /// <summary> Smart pointer to the thread to be constructed. </summary>
-        unique_thread_t m_workThreadObj{};
+        UniquePtrThread_t m_workThreadObj{};
         /// <summary> List of tasks to be ran on this specific workThread. </summary>
         TaskContainer_t m_taskListPtr;
     public:
@@ -125,7 +125,7 @@ namespace impcool
             if (m_workThreadObj == nullptr)
             {
                 m_isStopRequested.store(false);
-                m_workThreadObj = MakeUniqueSmart<thread_t>(&impcool::ThreadUnit::threadPoolFunc, this, std::cref(m_taskListPtr));
+                m_workThreadObj = MakeUniqueSmart<Thread_t>(&impcool::ThreadUnit::threadPoolFunc, this, std::cref(m_taskListPtr));
                 return true;
             }
             return false;
@@ -197,12 +197,14 @@ namespace impcool
             m_taskListPtr = {};
         }
     public:
-        /// <summary> Push a function with zero or more arguments, but no return value, into the task list (immer::vector).
+        /// <summary> Push a function with zero or more arguments, but no return value, into the task list.
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
         /// <param name="task"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
+        /// <remarks> Note: This will wait for the entire list of tasks in the list to finish before destructing
+        /// and recreating the thread with the new task. </remarks>
         template <typename F, typename... A>
         void PushInfiniteTaskBack(const F& task, const A&... args)
         {
@@ -213,20 +215,22 @@ namespace impcool
             StartDestruction();
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
-                m_taskListPtr.push_back(std::function<void()>(task));
+                m_taskListPtr = m_taskListPtr.push_back(std::function<void()>(task));
             else
-                m_taskListPtr.push_back(std::function<void()>([task, args...]{ task(args...); }));
+                m_taskListPtr = m_taskListPtr.push_back(std::function<void()>([task, args...]{ task(args...); }));
             // Wait for destruction to complete...
             WaitForDestruction();
             // Re-create thread function for the pool of tasks.
             CreateThread();
         }
-        /// <summary> Push a function with zero or more arguments, but no return value, into the task list (immer::vector).
+        /// <summary> Push a function with zero or more arguments, but no return value, into the task list.
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
         /// <param name="task"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
+        /// <remarks> Note: This will wait for the entire list of tasks in the list to finish before destructing
+        /// and recreating the thread with the new task. </remarks>
         template <typename F, typename... A>
         void PushInfiniteTaskFront(const F& task, const A&... args)
         {
@@ -237,20 +241,25 @@ namespace impcool
             StartDestruction();
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
-                m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>(task));
+            {
+                //TaskContainer_t cont(task);
+                m_taskListPtr = task + m_taskListPtr;
+                //m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>(task));
+            }
             else
-                m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>([task, args...]{ task(args...); }));
+            {
+                m_taskListPtr = m_taskListPtr.push_back([task, args...] { task(args...); });
+                //m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>([task, args...] { task(args...); }));
+            }
             // Wait for destruction to complete...
             WaitForDestruction();
             // Re-create thread function for the pool of tasks.
             CreateThread();
         }
         /// <summary> Returns the number of tasks in the task list.</summary>
-        [[nodiscard]]
-        std::size_t GetNumberOfTasks() const { return m_taskListPtr.size(); }
+        [[nodiscard]] std::size_t GetNumberOfTasks() const { return m_taskListPtr.size(); }
         /// <summary> Returns a copy of the immutable task list. </summary>
-        [[nodiscard]]
-        auto GetTaskList() const { return m_taskListPtr; }
+        [[nodiscard]] auto GetTaskList() const { return m_taskListPtr; }
         /// <summary> Stops the thread, replaces the task list, creates the thread again. </summary>
         void SetTaskList(const TaskContainer_t &newTaskList)
         {

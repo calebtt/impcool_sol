@@ -20,13 +20,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="immutable_thread_pool.h">
+    <ClInclude Include="ThreadPool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="impcool_bool_cv_pack.h">
+    <ClInclude Include="BoolCvPack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="impcool_thread_unit.h">
+    <ClInclude Include="ThreadUnit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DataProtector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
