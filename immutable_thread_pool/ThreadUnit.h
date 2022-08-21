@@ -16,6 +16,8 @@
 #include <vector>
 #include <condition_variable>
 #include <syncstream>
+#include <deque>
+#include "immer/flex_vector.hpp"
 #include "BoolCvPack.h"
 #include "DataProtector.h"
 
@@ -40,7 +42,8 @@ namespace impcool
         using Thread_t = std::thread;
         using BoolCv_t = BoolCvPack;
         using AtomicBool_t = std::atomic<bool>;
-        using TaskContainer_t = immer::vector<TaskWrapper_t>;
+        //using TaskContainer_t = immer::flex_vector<TaskWrapper_t, immer::default_memory_policy>;
+        using TaskContainer_t = std::deque<TaskWrapper_t>;
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
     private:
         /// <summary> Constant used to store the loop delay time period when no tasks are present. </summary>
@@ -215,9 +218,15 @@ namespace impcool
             StartDestruction();
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
-                m_taskListPtr = m_taskListPtr.push_back(std::function<void()>(task));
+            {
+                m_taskListPtr.push_back(std::function<void()>(task));
+                //m_taskListPtr = m_taskListPtr.push_back(std::function<void()>(task));
+            }
             else
-                m_taskListPtr = m_taskListPtr.push_back(std::function<void()>([task, args...]{ task(args...); }));
+            {
+                m_taskListPtr.push_back(std::function<void()>([task, args...] { task(args...); }));
+                //m_taskListPtr = m_taskListPtr.push_back(std::function<void()>([task, args...] { task(args...); }));
+            }
             // Wait for destruction to complete...
             WaitForDestruction();
             // Re-create thread function for the pool of tasks.
@@ -242,14 +251,13 @@ namespace impcool
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
             {
-                //TaskContainer_t cont(task);
-                m_taskListPtr = task + m_taskListPtr;
-                //m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>(task));
+                m_taskListPtr.push_front(std::function<void()>(task));
+                //m_taskListPtr = m_taskListPtr.push_front(std::function<void()>(task));
             }
             else
             {
-                m_taskListPtr = m_taskListPtr.push_back([task, args...] { task(args...); });
-                //m_taskListPtr.insert(m_taskListPtr.begin(), std::function<void()>([task, args...] { task(args...); }));
+                m_taskListPtr.push_front(std::function<void()>([task, args...] { task(args...); }));
+                //m_taskListPtr = m_taskListPtr.push_front(std::function<void()>([task, args...] { task(args...); }));
             }
             // Wait for destruction to complete...
             WaitForDestruction();

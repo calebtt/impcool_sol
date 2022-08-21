@@ -43,6 +43,8 @@ namespace impcool
     public:
         ThreadPool() = default;
     public:
+        //TODO add array-based task list push and push_front
+
         /// <summary> Push a function with zero or more arguments, but no return value, into the task list management object(s).
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
