@@ -72,6 +72,13 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 	tc.SetPauseValueOrdered(true);
 	tc.DestroyThread();
 
+	// Test adding tasks while paused.
+	std::getline(std::cin, buffer);
+	MultiPrint("Testing add task while paused...\n");
+	//tc.SetPauseValueOrdered(true);
+	tc.WaitForPauseCompleted();
+	tc.PushInfiniteTaskBack([]() { std::cout << "Task added while paused...\n"; });
+
 	// Create a new thread and add new tasks to it.
 	MultiPrint("Creating new thread and pool...\n");
 	tc.CreateThread();
@@ -89,6 +96,23 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 	std::getline(std::cin, buffer);
 }
 
+void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int TaskCount)
+{
+	std::string buffer;
+	//test thread pool
+	MultiPrint("Beginning the test of the ThreadPool class...\n");
+	
+	std::getline(std::cin, buffer);
+	impcool::ThreadPool<> tp;
+	tp.PushInfiniteTaskBack([&]()
+	{
+		os << "ThreadPool first task running...\n";
+		os.emit();
+		std::this_thread::sleep_for(std::chrono::milliseconds(750));
+	});
+	AddLotsOfTasks(tp, TaskCount, false);
+}
+
 //InfiniteThreadPool test
 int main()
 {
@@ -99,23 +123,12 @@ int main()
 		os << message;
 		os.emit();
 	};
-	static constexpr int TaskCount{ 200 };
+	static constexpr int TaskCount{ 20 };
 	std::string buffer;
 	//test thread unit
-	//TestThreadUnit(MultiPrint, TaskCount);
+	TestThreadUnit(os, MultiPrint, TaskCount);
 
-	//test thread pool
-	MultiPrint("Beginning the test of the ThreadPool class...\n");
-	
-	std::getline(std::cin, buffer);
-	impcool::ThreadPool<> tp;
-	tp.PushInfiniteTaskBack([&]()
-		{
-			os << "ThreadPool first task running...\n";
-			os.emit();
-			std::this_thread::sleep_for(std::chrono::milliseconds(750));
-		});
-	AddLotsOfTasks(tp, TaskCount, false);
+	//TestThreadPool(os, MultiPrint, TaskCount);
 
 	std::getline(std::cin, buffer);
 }

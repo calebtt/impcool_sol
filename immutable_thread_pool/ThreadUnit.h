@@ -3,7 +3,7 @@
  * ThreadUnit.h
  *
  * Helper class for working with threads and task lists.
- * Fully functional stand-alone class to manage a single thread that has a task list (immer::vector)
+ * Fully functional stand-alone class to manage a single thread that has a task list
  * and supports operations such as create/destroy and pause/unpause.
  *
  * Caleb Taylor August 8th, 2022
@@ -17,7 +17,6 @@
 #include <condition_variable>
 #include <syncstream>
 #include <deque>
-#include "immer/flex_vector.hpp"
 #include "BoolCvPack.h"
 #include "DataProtector.h"
 
@@ -25,7 +24,7 @@ namespace impcool
 {
     /// <summary> Class for working with a thread and task list.
     /// Manages running a thread pool thread. The thread can be started, paused, and destroyed.
-    /// The task list can be simply returned as it is immutable, or counted.
+    /// The task list can be simply returned as it is not mutated in-use only copied, or counted.
     /// A low-level granular kind of access is desirable here, if possible. </summary>
     /// <remarks> This class is also useable on it's own, if so desired. There are two mutually exclusive
     /// pause conditions, each with their own setter function. </remarks>
@@ -42,7 +41,6 @@ namespace impcool
         using Thread_t = std::thread;
         using BoolCv_t = BoolCvPack;
         using AtomicBool_t = std::atomic<bool>;
-        //using TaskContainer_t = immer::flex_vector<TaskWrapper_t, immer::default_memory_policy>;
         using TaskContainer_t = std::deque<TaskWrapper_t>;
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
     private:
@@ -139,8 +137,8 @@ namespace impcool
         /// <remarks><b>Note:</b> The two different pause states (for <c>true</c> value) are mutually exclusive! Only one may be set at a time. </remarks>
         void SetPauseValueOrdered(const bool enablePause)
         {
-            //If a value is being set to true, and the other pause state is already true...
-            if (enablePause && m_isUnorderedPauseRequested.GetState())
+            //If a value is being set to true, and the other pause state is already true... (or this pause state)
+            if (enablePause && (m_isUnorderedPauseRequested.GetState() || m_isOrderedPauseRequested.GetState()))
             {
                 //Do nothing...
                 return;
@@ -154,8 +152,8 @@ namespace impcool
         /// /// <remarks><b>Note:</b> The two different pause states (for <c>true</c> value) are mutually exclusive! Only one may be set at a time. </remarks>
         void SetPauseValueUnordered(const bool enablePause)
         {
-            //If a value is being set to true, and the other pause state is already true...
-            if (enablePause && m_isOrderedPauseRequested.GetState())
+            //If a value is being set to true, and the other pause state is already true... (or this pause state)
+            if (enablePause && (m_isOrderedPauseRequested.GetState() || m_isUnorderedPauseRequested.GetState()))
             {
                 //Do nothing...
                 return;
@@ -184,6 +182,7 @@ namespace impcool
             if (!m_isPauseCompleted.GetState() && testForRequested)
             {
                 m_isPauseCompleted.WaitForTrue();
+                //TODO fix the problem of clearing the pause state when a double pause request is made!
             }
         }
         /// <summary> Destructs the running thread after it finishes running the current task it's on
@@ -216,16 +215,17 @@ namespace impcool
 
             // Start by requesting destruction.
             StartDestruction();
+            // Unpause if necessary.
+            SetPauseValueUnordered(false);
+            SetPauseValueOrdered(false);
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
             {
                 m_taskListPtr.push_back(std::function<void()>(task));
-                //m_taskListPtr = m_taskListPtr.push_back(std::function<void()>(task));
             }
             else
             {
                 m_taskListPtr.push_back(std::function<void()>([task, args...] { task(args...); }));
-                //m_taskListPtr = m_taskListPtr.push_back(std::function<void()>([task, args...] { task(args...); }));
             }
             // Wait for destruction to complete...
             WaitForDestruction();
@@ -252,12 +252,10 @@ namespace impcool
             if constexpr (sizeof...(args) == 0)
             {
                 m_taskListPtr.push_front(std::function<void()>(task));
-                //m_taskListPtr = m_taskListPtr.push_front(std::function<void()>(task));
             }
             else
             {
                 m_taskListPtr.push_front(std::function<void()>([task, args...] { task(args...); }));
-                //m_taskListPtr = m_taskListPtr.push_front(std::function<void()>([task, args...] { task(args...); }));
             }
             // Wait for destruction to complete...
             WaitForDestruction();
