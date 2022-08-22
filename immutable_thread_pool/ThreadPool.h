@@ -1,5 +1,5 @@
 /*
- * immutable_thread_pool.h
+ * ThreadPool.h
  * An immutable thread pool.
  * Caleb Taylor August 8th, 2022
  * MIT license.
@@ -32,7 +32,6 @@ namespace impcool
     {
         //TODO implement benchmarking and auto-balancing of tasks.
     public:
-        //using concurrency_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
         using Task_t = std::function<void()>;
         using TaskContainer_t = immer::vector<Task_t>;
         using ThreadUnit_t = ThreadProvider_t;
@@ -71,12 +70,6 @@ namespace impcool
             for (const auto& elem : m_threadList) { elem.SetPauseUnordered(true); }
         }
     private:
-     //   [[nodiscard]]
-    	//static auto GetCoreCount() noexcept -> concurrency_t
-     //   {
-     //       const concurrency_t numThreads = std::thread::hardware_concurrency();
-     //       return numThreads < DefaultCoreCount ? DefaultCoreCount : numThreads;
-     //   }
 
     };
 }

@@ -1,6 +1,6 @@
 #pragma once
 /*
- * impcool_thread_unit.h
+ * ThreadUnit.h
  *
  * Helper class for working with threads and task lists.
  * Fully functional stand-alone class to manage a single thread that has a task list (immer::vector)

@@ -118,6 +118,4 @@ int main()
 	AddLotsOfTasks(tp, TaskCount, false);
 
 	std::getline(std::cin, buffer);
-	std::array<std::array<int, 12>, 12> matrix{};
-	matrix[0][1] = 3;
 }
