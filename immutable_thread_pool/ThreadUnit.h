@@ -66,10 +66,9 @@ namespace impcool
         /// <summary> List of tasks to be ran on this specific workThread. </summary>
         TaskContainer_t m_taskListPtr;
     public:
-        /// <summary> Ctor starts the thread. </summary>
         ThreadUnit()
         {
-            CreateThread();
+            //CreateThread();
         }
         ThreadUnit(const ThreadUnit& other)
 	        : m_isOrderedPauseRequested(other.m_isOrderedPauseRequested),
@@ -126,7 +125,7 @@ namespace impcool
             if (m_workThreadObj == nullptr)
             {
                 m_isStopRequested.store(false);
-                m_workThreadObj = MakeUniqueSmart<Thread_t>(&impcool::ThreadUnit::threadPoolFunc, this, std::cref(m_taskListPtr));
+                m_workThreadObj = MakeUniqueSmart<Thread_t>([&]() { threadPoolFunc(m_taskListPtr); });
                 return true;
             }
             return false;

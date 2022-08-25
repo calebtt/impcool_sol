@@ -71,6 +71,7 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 	MultiPrint("Testing destroy while pause is requested...\n");
 	tc.SetPauseValueOrdered(true);
 	tc.DestroyThread();
+	tc.DestroyThread();
 
 	// Test adding tasks while paused.
 	std::getline(std::cin, buffer);
