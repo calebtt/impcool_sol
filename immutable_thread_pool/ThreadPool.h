@@ -31,11 +31,13 @@ namespace impcool
     class ThreadPool
     {
         //TODO implement benchmarking and auto-balancing of tasks.
+        //TODO figure out a better public interface for this.
     public:
         using Task_t = std::function<void()>;
-        using TaskContainer_t = immer::vector<Task_t>;
         using ThreadUnit_t = ThreadProvider_t;
-        using ThreadUnitList_t = immer::vector<ThreadUnit_t>;
+
+        //using TaskContainer_t = immer::vector<Task_t>;
+        //using ThreadUnitList_t = immer::vector<ThreadUnit_t>;
     private:
         // the list of threads
         std::array<ThreadUnit_t, NumThreads> m_threadList;
@@ -48,26 +50,66 @@ namespace impcool
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
-        /// <param name="task"> The function to push. </param>
+        /// <param name="taskFn"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
         template <typename F, typename... A>
-        void PushInfiniteTaskBack(const F& task, const A&... args)
+        void PushInfiniteTaskBack(const F& taskFn, const A&... args)
         {
             // iterate list, find placement for task (thread with fewest tasks)
-            auto minIt = std::min_element(m_threadList.begin(), m_threadList.end(), [](auto &lhs, auto &rhs)
+            auto minIt = std::min_element(m_threadList.begin(), m_threadList.end(), [](const auto &lhs, const auto &rhs)
             {
                     return lhs.GetNumberOfTasks() < rhs.GetNumberOfTasks();
             });
-            minIt->PushInfiniteTaskBack(task, args...);
+            minIt->PushInfiniteTaskBack(taskFn, args...);
         }
 
-        void PauseAllThreadsOrdered() const
+        void SetPauseThreadsOrdered(const bool doPause) const
         {
-	        for(const auto &elem : m_threadList) { elem.SetPauseOrdered(true); }
+	        for(const auto &elem : m_threadList)
+		        elem.SetPauseOrdered(doPause);
         }
-        void PauseAllThreadsUnordered() const
+        void SetPauseThreadsUnordered(const bool doPause) const
         {
-            for (const auto& elem : m_threadList) { elem.SetPauseUnordered(true); }
+            for (const auto& elem : m_threadList) 
+                elem.SetPauseUnordered(doPause);
+        }
+        bool CreateAll()
+        {
+            for (auto& elem : m_threadList)
+            {
+                const bool createResult = elem.CreateThread();
+                if (!createResult)
+                    return false;
+            }
+            return true;
+        }
+        void DestroyAll()
+        {
+            for (auto& elem : m_threadList)
+                elem.DestroyThread();
+        }
+
+        void WaitForPauseCompleted(const bool requirePauseIsRequested = true)
+        {
+            for (auto& elem : m_threadList)
+                elem.WaitForPauseCompleted(requirePauseIsRequested);
+        }
+
+        std::size_t GetTaskCount() const
+        {
+            std::size_t currentCount{};
+            for (const auto& elem : m_threadList)
+            {
+                currentCount += elem.GetNumberOfTasks();
+            }
+            return currentCount;
+        }
+
+        /// <summary> Returns a non-owning pointer to the internal ThreadUnit array. </summary>
+        /// <returns>non-owning pointer to internal ThreadUnit array</returns>
+        auto* GetThreadList() const
+        {
+            return &m_threadList;
         }
     private:
 

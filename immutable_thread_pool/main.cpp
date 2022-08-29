@@ -105,13 +105,15 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 	
 	std::getline(std::cin, buffer);
 	impcool::ThreadPool<> tp;
-	tp.PushInfiniteTaskBack([&]()
+	tp.PushInfiniteTaskBack([]()
 	{
+		std::osyncstream os(std::cout);
 		os << "ThreadPool first task running...\n";
 		os.emit();
 		std::this_thread::sleep_for(std::chrono::milliseconds(750));
 	});
 	AddLotsOfTasks(tp, TaskCount, false);
+	std::getline(std::cin, buffer);
 }
 
 //InfiniteThreadPool test
@@ -127,9 +129,10 @@ int main()
 	static constexpr int TaskCount{ 20 };
 	std::string buffer;
 	//test thread unit
-	TestThreadUnit(os, MultiPrint, TaskCount);
+	//TestThreadUnit(os, MultiPrint, TaskCount);
 
-	//TestThreadPool(os, MultiPrint, TaskCount);
+	//test thread pool
+	TestThreadPool(os, MultiPrint, TaskCount);
 
 	std::getline(std::cin, buffer);
 }

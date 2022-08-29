@@ -18,7 +18,6 @@
 #include <syncstream>
 #include <deque>
 #include "BoolCvPack.h"
-#include "DataProtector.h"
 
 namespace impcool
 {
@@ -66,10 +65,7 @@ namespace impcool
         /// <summary> List of tasks to be ran on this specific workThread. </summary>
         TaskContainer_t m_taskListPtr;
     public:
-        ThreadUnit()
-        {
-            //CreateThread();
-        }
+        ThreadUnit() = default;
         ThreadUnit(const ThreadUnit& other)
 	        : m_isOrderedPauseRequested(other.m_isOrderedPauseRequested),
 	          m_isUnorderedPauseRequested(other.m_isUnorderedPauseRequested),
@@ -171,12 +167,12 @@ namespace impcool
         }
         /// <summary> Called to wait for the thread to enter the "paused" state, after
         /// a call to <c>set_pause_value</c> with <b>true</b>. </summary>
-        /// <param name="require_pause_is_requested"> Option to require pause to have been requested before call to this function.
+        /// <param name="requirePauseIsRequested"> Option to require pause to have been requested before call to this function.
         /// Function does nothing if set to <b>true</b> and no pause has been requested. </param>
         /// <remarks> Set <c>require_pause_is_requested</c> to false to wait <b>indefinitely</b> to enter a pause state. </remarks>
-        void WaitForPauseCompleted(const bool require_pause_is_requested = true)
+        void WaitForPauseCompleted(const bool requirePauseIsRequested = true)
         {
-            const bool testForRequested = require_pause_is_requested ? m_isOrderedPauseRequested.GetState() : true;
+            const bool testForRequested = requirePauseIsRequested ? m_isOrderedPauseRequested.GetState() : true;
             // If pause not yet completed, AND pause is actually requested...
             if (!m_isPauseCompleted.GetState() && testForRequested)
             {
@@ -202,12 +198,12 @@ namespace impcool
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
-        /// <param name="task"> The function to push. </param>
+        /// <param name="taskFn"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
         /// <remarks> Note: This will wait for the entire list of tasks in the list to finish before destructing
         /// and recreating the thread with the new task. </remarks>
         template <typename F, typename... A>
-        void PushInfiniteTaskBack(const F& task, const A&... args)
+        void PushInfiniteTaskBack(const F& taskFn, const A&... args)
         {
             // In order to add a new task, the currently running thread must be destructed
             // and created anew with a new copy of the task list.
@@ -220,11 +216,11 @@ namespace impcool
             // Construct a new (immutable) copy of the task list (handy that we aren't modifying the data used by the running thread).
             if constexpr (sizeof...(args) == 0)
             {
-                m_taskListPtr.push_back(std::function<void()>(task));
+                m_taskListPtr.push_back(std::function<void()>(taskFn));
             }
             else
             {
-                m_taskListPtr.push_back(std::function<void()>([task, args...] { task(args...); }));
+                m_taskListPtr.push_back(std::function<void()>([taskFn, args...] { taskFn(args...); }));
             }
             // Wait for destruction to complete...
             WaitForDestruction();

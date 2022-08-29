@@ -8,5 +8,8 @@
 #define PCH_H
 
 // add headers that you want to pre-compile here
-
+#include <string>
+#include <iostream>
+#include <chrono>
+#include <thread>
 #endif //PCH_H
