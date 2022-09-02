@@ -26,6 +26,7 @@ namespace impcool
     /// <remarks>
     /// Non-copyable.
     /// Non-moveable.
+    /// Does NOT start the threads running on construction.
     /// </remarks>
     template<unsigned NumThreads = 4, typename ThreadProvider_t = impcool::ThreadUnit>
     class ThreadPool
@@ -66,10 +67,10 @@ namespace impcool
 		        elem.SetPauseValueOrdered(doPause);
         }
 
-        void SetPauseThreadsUnordered(const bool doPause) const
+        void SetPauseThreadsUnordered(const bool doPause)
         {
-            for (const auto& elem : m_threadList) 
-                elem.SetPauseUnordered(doPause);
+            for (auto& elem : m_threadList) 
+                elem.SetPauseValueUnordered(doPause);
         }
 
         bool CreateAll()

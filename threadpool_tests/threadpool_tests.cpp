@@ -99,9 +99,9 @@ namespace threadpooltests
 			using namespace std::chrono;
 			static constexpr auto TimeDelay{ 1s };
 			impcool::ThreadPool tp;
-
+			tp.CreateAll();
 			std::atomic<bool> testCondition{ false };
-			tp.PushInfiniteTaskBack([&testCondition]()
+			tp.PushInfiniteTaskBack([&]()
 				{
 					testCondition = true;
 					std::this_thread::sleep_for(TimeDelay);
