@@ -1,7 +1,7 @@
 /*
  * ThreadPool.h
  * An immutable thread pool.
- * Caleb Taylor August 8th, 2022
+ * Caleb T. August 8th, 2022
  * MIT license.
  */
 #pragma once
@@ -35,9 +35,6 @@ namespace impcool
     public:
         using Task_t = std::function<void()>;
         using ThreadUnit_t = ThreadProvider_t;
-
-        //using TaskContainer_t = immer::vector<Task_t>;
-        //using ThreadUnitList_t = immer::vector<ThreadUnit_t>;
     private:
         // the list of threads
         std::array<ThreadUnit_t, NumThreads> m_threadList;
@@ -63,16 +60,18 @@ namespace impcool
             minIt->PushInfiniteTaskBack(taskFn, args...);
         }
 
-        void SetPauseThreadsOrdered(const bool doPause) const
+        void SetPauseThreadsOrdered(const bool doPause)
         {
-	        for(const auto &elem : m_threadList)
-		        elem.SetPauseOrdered(doPause);
+	        for(auto &elem : m_threadList)
+		        elem.SetPauseValueOrdered(doPause);
         }
+
         void SetPauseThreadsUnordered(const bool doPause) const
         {
             for (const auto& elem : m_threadList) 
                 elem.SetPauseUnordered(doPause);
         }
+
         bool CreateAll()
         {
             for (auto& elem : m_threadList)
@@ -83,6 +82,7 @@ namespace impcool
             }
             return true;
         }
+        
         void DestroyAll()
         {
             for (auto& elem : m_threadList)
@@ -95,7 +95,7 @@ namespace impcool
                 elem.WaitForPauseCompleted(requirePauseIsRequested);
         }
 
-        std::size_t GetTaskCount() const
+        [[nodiscard]] std::size_t GetTaskCount() const
         {
             std::size_t currentCount{};
             for (const auto& elem : m_threadList)
@@ -105,9 +105,24 @@ namespace impcool
             return currentCount;
         }
 
+        /// <summary> Returns a vector of tasks associated with each ThreadUnit as a single container. </summary>
+        [[nodiscard]] auto GetUnifiedTaskList() const
+        {
+            std::vector< typename ThreadUnit_t::TaskWrapper_t > taskContainer;
+            //typename ThreadUnit_t::TaskContainer_t taskContainer;
+	        for(const auto &elem : m_threadList)
+	        {
+                const auto tempDeque = elem.GetTaskList();
+                taskContainer.reserve(taskContainer.size() + tempDeque.size());
+                std::move(std::begin(tempDeque), std::end(tempDeque), std::back_inserter(taskContainer));
+	        }
+            return taskContainer;
+        }
+
         /// <summary> Returns a non-owning pointer to the internal ThreadUnit array. </summary>
-        /// <returns>non-owning pointer to internal ThreadUnit array</returns>
-        auto* GetThreadList() const
+        /// <returns> non-owning pointer to internal ThreadUnit array </returns>
+        /// <remarks> Can be used to add tasks to individual ThreadUnits if desired, or start/stop/pause them individually. </remarks>
+        [[nodiscard]] auto* GetThreadList()
         {
             return &m_threadList;
         }

@@ -1,11 +1,11 @@
 #pragma once
 /*
- * impcool_bool_cv_pack.h
+ * BoolCvPack.h
  *
- * A pack of types used with a condition variable, and some helper
- * functions to aid in operating on them to perform a common task (WaitForFalse, WaitForTrue, get/update etc.)
+ * A pack of types used with a condition variable, and some helper functions to aid in
+ * operating on them to perform a common task (WaitForFalse, WaitForTrue, get/update etc.)
  *
- * Caleb Taylor August 8th, 2022
+ * Caleb T. August 8th, 2022
  * MIT license.
  */
 #include <mutex>

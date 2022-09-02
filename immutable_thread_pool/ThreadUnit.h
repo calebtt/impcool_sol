@@ -6,7 +6,7 @@
  * Fully functional stand-alone class to manage a single thread that has a task list
  * and supports operations such as create/destroy and pause/unpause.
  *
- * Caleb Taylor August 8th, 2022
+ * Caleb T. August 8th, 2022
  * MIT license.
  */
 #pragma once
@@ -270,6 +270,7 @@ namespace impcool
             CreateThread();
         }
     private:
+        // Changes stop requested to true...
         void StartDestruction()
         {
             m_isStopRequested.store(true);
