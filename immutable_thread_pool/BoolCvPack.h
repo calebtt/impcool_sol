@@ -30,7 +30,7 @@ namespace impcool
     public:
         /// <summary> The shared data condition flag holding the notifiable state. </summary>
         std::atomic<SharedData> is_condition_true{ false };
-        /// <summary> A condition variables used to notify the work thread when "shared data" becomes false. </summary>
+        /// <summary> A condition variable used to notify the work thread when "shared data" becomes false. </summary>
         CvConditionVar task_running_cv{};
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
         CvMutex running_mutex{};
