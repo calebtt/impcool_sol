@@ -170,6 +170,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ThreadUnitTests.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\immutable_thread_pool\immutable_thread_pool.vcxproj">

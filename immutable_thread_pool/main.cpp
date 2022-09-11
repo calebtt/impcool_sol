@@ -5,7 +5,7 @@
 #include <string>
 
 #include "ThreadPool.h"
-#include "ThreadUnit.h"
+#include "ThreadUnitPlus.h"
 
 
 void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
@@ -43,7 +43,7 @@ void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
 void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t numOfTasks = 5)
 {
 	//thread unit object
-	impcool::ThreadUnit tc;
+	impcool::ThreadUnitPlus tc;
 
 	std::string buffer;
 	// Add lots of tasks that perform simple work, printing a message.
@@ -110,9 +110,29 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 		std::osyncstream os(std::cout);
 		os << "ThreadPool first task running...\n";
 		os.emit();
-		std::this_thread::sleep_for(std::chrono::milliseconds(750));
+		std::this_thread::sleep_for(std::chrono::milliseconds(250));
 	});
-	AddLotsOfTasks(tp, TaskCount, false);
+	// After the single task has been added, set the pause value to true and wait for it.
+	std::this_thread::sleep_for(std::chrono::milliseconds(750));
+	tp.SetPauseThreadsOrdered(true);
+	tp.WaitForPauseCompleted();
+	MultiPrint("Now we will add a few more tasks, and hope that we can avoid seeing the first task run again.\n");
+	tp.PushInfiniteTaskBack([]()
+		{
+			std::osyncstream os(std::cout);
+			os << "ThreadPool task added while paused... \n";
+			os.emit();
+			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+		});
+	tp.PushInfiniteTaskBack([]()
+		{
+			std::osyncstream os(std::cout);
+			os << "ThreadPool task added while paused... \n";
+			os.emit();
+			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+		});
+	MultiPrint("If no output was between here and the last message, the pause before adding threads works.\n");
+	//AddLotsOfTasks(tp, TaskCount, false);
 	std::getline(std::cin, buffer);
 }
 
@@ -134,5 +154,6 @@ int main()
 	//test thread pool
 	TestThreadPool(os, MultiPrint, TaskCount);
 
+	MultiPrint("\nEnter to exit...\n\n");
 	std::getline(std::cin, buffer);
 }

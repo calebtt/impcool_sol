@@ -23,13 +23,16 @@
     <ClInclude Include="ThreadPool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DataProtector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadTaskSource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="BoolCvPack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ThreadUnit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DataProtector.h">
+    <ClInclude Include="ThreadUnitPlus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -20,50 +20,65 @@ namespace impcool
     struct BoolCvPack
     {
         // Some type aliases used in the condition variable packs, and possibly elsewhere.
-        using SharedData = bool;
         using CvMutex = std::mutex;
+        // alias for std::condition_variable type
         using CvConditionVar = std::condition_variable;
-        /// <summary> An alias for the scoped lock type used to lock the cv mutex before modifying the shared variable. </summary>
-        using cv_setterlock_t = std::lock_guard<CvMutex>;
-        /// <summary> An alias for the scoped lock type used to lock the cv mutex when calling wait() on the condition var. </summary>
-        using cv_waiterlock_t = std::unique_lock<CvMutex>;
+        // An alias for the scoped lock type used to lock the cv mutex before modifying the shared variable.
+        using SetterLock_t = std::lock_guard<CvMutex>;
+        // An alias for the scoped lock type used to lock the cv mutex when calling wait() on the condition var.
+        using WaiterLock_t = std::unique_lock<CvMutex>;
+        // Stop source can be used to cancel the wait operations.
+        using StopSource_t = std::stop_source;
     public:
         /// <summary> The shared data condition flag holding the notifiable state. </summary>
-        std::atomic<SharedData> is_condition_true{ false };
-        /// <summary> A condition variable used to notify the work thread when "shared data" becomes false. </summary>
+        std::atomic<bool> is_condition_true{ false };
+        /// <summary> A condition variables used to notify the work thread when "shared data" becomes false. </summary>
         CvConditionVar task_running_cv{};
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
         CvMutex running_mutex{};
+        // Stop source used to cancel the wait operations.
+        StopSource_t stop_source{ std::nostopstate };
     public:
         BoolCvPack() = default;
         ~BoolCvPack() = default;
-        BoolCvPack(const BoolCvPack& other) { is_condition_true.exchange(other.is_condition_true.load()); }
-        BoolCvPack(BoolCvPack&& other) noexcept { is_condition_true.exchange(other.is_condition_true); }
+        BoolCvPack(const BoolCvPack& other)
+        {
+            stop_source = other.stop_source;
+	        is_condition_true.exchange(other.is_condition_true.load());
+        }
+        BoolCvPack(BoolCvPack&& other) noexcept
+        {
+            stop_source = other.stop_source;
+	        is_condition_true.exchange(other.is_condition_true);
+        }
         BoolCvPack& operator=(const BoolCvPack& other)
-    	{
-	        if (this == &other)
-		        return *this;
+        {
+            if (this == &other)
+                return *this;
+            stop_source = other.stop_source;
             is_condition_true.exchange(other.is_condition_true.load());
-	        return *this;
+            return *this;
         }
         BoolCvPack& operator=(BoolCvPack&& other) noexcept
         {
-	        if (this == &other)
-		        return *this;
+            if (this == &other)
+                return *this;
+            stop_source = other.stop_source;
             is_condition_true.exchange(other.is_condition_true);
-	        return *this;
+            return *this;
         }
     public:
         /// <summary> Waits for a boolean SharedData atomic to return <b>false</b>.
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
         /// <c>"notify_all()"</c>. Without the notify from another thread, it would basically be a <b>deadlock</b>. </summary>
-        void WaitForFalse() 
+        void WaitForFalse()
         {
-            cv_waiterlock_t pause_lock(running_mutex);
+            WaiterLock_t pause_lock(running_mutex);
             task_running_cv.wait(pause_lock, [&]() -> bool
                 {
-                    return !is_condition_true;
+                    const bool stopPossibleAndRequested = stop_source.stop_possible() && stop_source.stop_requested();
+                    return !is_condition_true || stopPossibleAndRequested;
                 });
         }
         /// <summary> Waits for a boolean SharedData atomic to return <b>true</b>.
@@ -72,19 +87,20 @@ namespace impcool
         /// <c>"notify_all()"</c>. Without the notify from another thread, it would basically be a <b>deadlock</b>. </summary>
         void WaitForTrue()
         {
-            cv_waiterlock_t pause_lock{ running_mutex };
+            WaiterLock_t pause_lock{ running_mutex };
             task_running_cv.wait(pause_lock, [&]() -> bool
                 {
-                    return is_condition_true;
+                    const bool stopPossibleAndRequested = stop_source.stop_possible() && stop_source.stop_requested();
+                    return is_condition_true || stopPossibleAndRequested;
                 });
         }
         /// <summary> Called to update the shared state variable. Notifies all waiting threads
         /// to wake up and perform their wait check. </summary>
         /// <param name="trueOrEnabled"> true to enable, presumably. </param>
-        void UpdateState(const SharedData trueOrEnabled)
+        void UpdateState(const bool trueOrEnabled)
         {
             {
-                cv_setterlock_t setter_lock{ running_mutex };
+                SetterLock_t setter_lock{ running_mutex };
                 is_condition_true = trueOrEnabled;
             }
             task_running_cv.notify_all();

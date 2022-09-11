@@ -1,24 +1,24 @@
 #include "pch.h"
 #include "CppUnitTest.h"
-#include "../immutable_thread_pool/ThreadUnit.h"
+#include "ThreadUnitTests.h"
+#include "../immutable_thread_pool/ThreadUnitPlus.h"
 #include "../immutable_thread_pool/ThreadPool.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace threadpooltests
 {
+	TEST_CLASS(stub)
+	{
+	public:
+		TEST_METHOD(stubfunc)
+		{
+			Assert::IsTrue(true);
+		}
+	};
 	TEST_CLASS(threadpooltests)
 	{
 	public:
-		
-		TEST_METHOD(TestTUCreate)
-		{
-			impcool::ThreadUnit tu{};
-			Assert::IsTrue(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
-		}
 
 		TEST_METHOD(TestThreadPoolBasics)
 		{
@@ -26,7 +26,7 @@ namespace threadpooltests
 			using namespace std::chrono;
 			static constexpr std::size_t TaskCount{ 5 };
 			const std::string TestName{ "TestThreadPoolBasics" };
-			impcool::ThreadPool<> tp{};
+			impcool::ThreadPool tp{};
 			tp.CreateAll();
 			tp.DestroyAll();
 			tp.CreateAll();
@@ -98,14 +98,15 @@ namespace threadpooltests
 			using namespace std::chrono_literals;
 			using namespace std::chrono;
 			static constexpr auto TimeDelay{ 1s };
-			impcool::ThreadPool tp;
-			tp.CreateAll();
+			impcool::ThreadPool tp{};
+			//tp.CreateAll();
 			std::atomic<bool> testCondition{ false };
 			tp.PushInfiniteTaskBack([&]()
 				{
 					testCondition = true;
 					std::this_thread::sleep_for(TimeDelay);
 				});
+			std::this_thread::sleep_for(TimeDelay);
 			tp.SetPauseThreadsOrdered(true);
 			tp.WaitForPauseCompleted();
 			tp.DestroyAll();

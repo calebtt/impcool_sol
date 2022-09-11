@@ -136,10 +136,11 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DataProtector.h" />
     <ClInclude Include="BoolCvPack.h" />
+    <ClInclude Include="DataProtector.h" />
     <ClInclude Include="ThreadPool.h" />
-    <ClInclude Include="ThreadUnit.h" />
+    <ClInclude Include="ThreadTaskSource.h" />
+    <ClInclude Include="ThreadUnitPlus.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
