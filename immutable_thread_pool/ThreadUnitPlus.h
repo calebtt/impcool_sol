@@ -19,7 +19,6 @@
 #include <syncstream>
 #include <memory>
 #include <deque>
-#include <cassert>
 #include "ThreadTaskSource.h"
 #include "BoolCvPack.h"
 

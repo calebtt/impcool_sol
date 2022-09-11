@@ -13,8 +13,7 @@
 #include <condition_variable>
 #include <syncstream>
 #include <array>
-#include <immer/vector.hpp>
-#include <immer/array.hpp>
+#include <algorithm>
 #include "ThreadUnitPlus.h"
 
 namespace impcool
