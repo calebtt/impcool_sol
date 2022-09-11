@@ -43,7 +43,7 @@ namespace impcool
     /// <remarks>
     /// Non-copyable.
     /// Non-moveable.
-    /// Does NOT start the threads running on construction.
+    /// Does start the threads running on construction.
     /// </remarks>
     template<unsigned NumThreads = 4, IsThreadUnit ThreadProvider_t = impcool::ThreadUnitPlus>
     class ThreadPool
