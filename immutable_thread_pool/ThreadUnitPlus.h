@@ -1,6 +1,6 @@
 #pragma once
 /*
- * ThreadUnit.h
+ * ThreadUnitPlus.h
  *
  * Helper class for working with a thread.
  * Fully functional stand-alone class to manage a single thread that has a task list

@@ -3,6 +3,12 @@
 
 namespace impcool
 {
+    /// <summary>
+    /// Unused as of yet. Just an idea for returning a wrapped
+    /// container with an RAII mutex.
+    /// </summary>
+    /// <typeparam name="ProtectedData"></typeparam>
+    /// <typeparam name="MutexType"></typeparam>
     template<typename ProtectedData, typename MutexType = std::mutex>
     class DataProtector
     {

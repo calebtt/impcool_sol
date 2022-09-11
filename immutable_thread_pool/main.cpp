@@ -146,10 +146,10 @@ int main()
 		os << message;
 		os.emit();
 	};
-	static constexpr int TaskCount{ 20 };
+	static constexpr int TaskCount{ 5 };
 	std::string buffer;
 	//test thread unit
-	//TestThreadUnit(os, MultiPrint, TaskCount);
+	TestThreadUnit(os, MultiPrint, TaskCount);
 
 	//test thread pool
 	TestThreadPool(os, MultiPrint, TaskCount);

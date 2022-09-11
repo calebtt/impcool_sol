@@ -1,6 +1,8 @@
 /*
  * ThreadPool.h
- * An immutable thread pool.
+ * A thread pool that utilizes the concept of immutability to
+ * make implementation simpler. The task buffer is copied upon
+ * thread creation and no shared data exists there.
  * Caleb T. August 8th, 2022
  * MIT license.
  */
