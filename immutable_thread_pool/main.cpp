@@ -39,7 +39,7 @@ void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
 	}
 }
 
-void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t numOfTasks = 5)
+void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t taskCount = 5)
 {
 	MultiPrint("\n\nBeginning test of the Thread Unit type...\n");
 	//thread unit object
@@ -48,7 +48,7 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 	std::string buffer;
 	// Add lots of tasks that perform simple work, printing a message.
 	// Tasks of the argument-less form as well as tasks with arguments.
-	AddLotsOfTasks(tc, numOfTasks);
+	AddLotsOfTasks(tc, taskCount);
 
 	std::getline(std::cin, buffer);
 	MultiPrint("Adding another task, while it's running...\n");
@@ -100,6 +100,8 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 template<int ThreadCount = 2>
 void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int TaskCount)
 {
+	using namespace std::chrono_literals;
+	static constexpr auto TaskSleepTime = 250ms;
 	std::string buffer;
 	//test thread pool
 	MultiPrint("Beginning the test of the ThreadPool class...\n");
@@ -111,7 +113,7 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 		std::osyncstream os(std::cout);
 		os << "ThreadPool first task running...\n";
 		os.emit();
-		std::this_thread::sleep_for(std::chrono::milliseconds(250));
+		std::this_thread::sleep_for(TaskSleepTime);
 	});
 	// After the single task has been added, set the pause value to true and wait for it.
 	std::this_thread::sleep_for(std::chrono::milliseconds(750));
@@ -123,14 +125,14 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 			std::osyncstream os(std::cout);
 			os << "ThreadPool task added while paused... \n";
 			os.emit();
-			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			std::this_thread::sleep_for(TaskSleepTime);
 		});
 	tp.PushInfiniteTaskBack([]()
 		{
 			std::osyncstream os(std::cout);
 			os << "ThreadPool task added while paused... \n";
 			os.emit();
-			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			std::this_thread::sleep_for(TaskSleepTime);
 		});
 	MultiPrint("If no output was between here and the last message, the pause before adding threads works.\n");
 	std::getline(std::cin, buffer);
