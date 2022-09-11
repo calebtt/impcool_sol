@@ -34,7 +34,8 @@ namespace impcool
     };
 
     /// <summary>
-    /// An immutable thread pool utilizing the immer library immutable data structures.
+    /// A thread pool for running infinitely reoccurring tasks.
+    /// Prototyped with the immer library for immutable data structures.
     /// Immutable types enforce a convenient form of implementation that relies on the
     /// copying of data instead of mutating it and working around the changing state.
     /// </summary>
