@@ -14,6 +14,7 @@
 #include <syncstream>
 #include <array>
 #include <algorithm>
+#include <cassert>
 #include "ThreadUnitPlus.h"
 
 namespace impcool
@@ -107,6 +108,7 @@ namespace impcool
             {
                     return lhs.GetNumberOfTasks() < rhs.GetNumberOfTasks();
             });
+            assert(minIt != m_threadList.end());
             minIt->PushInfiniteTaskBack(taskFn, args...);
         }
 
