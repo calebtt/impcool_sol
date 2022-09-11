@@ -7,7 +7,6 @@
 #include "ThreadPool.h"
 #include "ThreadUnitPlus.h"
 
-
 void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
 {
 	if (addFirstTwo)
@@ -42,6 +41,7 @@ void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
 
 void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t numOfTasks = 5)
 {
+	MultiPrint("\n\nBeginning test of the Thread Unit type...\n");
 	//thread unit object
 	impcool::ThreadUnitPlus tc;
 
@@ -97,6 +97,7 @@ void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t n
 	std::getline(std::cin, buffer);
 }
 
+template<int ThreadCount = 2>
 void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int TaskCount)
 {
 	std::string buffer;
@@ -104,7 +105,7 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 	MultiPrint("Beginning the test of the ThreadPool class...\n");
 	
 	std::getline(std::cin, buffer);
-	impcool::ThreadPool<> tp;
+	impcool::ThreadPool<ThreadCount> tp;
 	tp.PushInfiniteTaskBack([]()
 	{
 		std::osyncstream os(std::cout);
@@ -132,7 +133,11 @@ void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int Task
 			std::this_thread::sleep_for(std::chrono::milliseconds(250));
 		});
 	MultiPrint("If no output was between here and the last message, the pause before adding threads works.\n");
-	//AddLotsOfTasks(tp, TaskCount, false);
+	std::getline(std::cin, buffer);
+	MultiPrint("\n\nAdding " + std::to_string(TaskCount) + " tasks after clearing and un-pausing...\n\n");
+	tp.DestroyAll();
+	AddLotsOfTasks(tp, TaskCount, false);
+	tp.SetPauseThreadsOrdered(false);
 	std::getline(std::cin, buffer);
 }
 
