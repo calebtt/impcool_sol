@@ -12,4 +12,5 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <syncstream>
 #endif //PCH_H

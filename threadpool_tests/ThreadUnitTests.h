@@ -28,16 +28,17 @@ namespace threadpooltests
 			const auto AddLotsOfTasks = [](auto& tc, const std::size_t count)
 			{
 				using namespace std::chrono_literals;
-				static constexpr auto SleepTime{ 250ms };
 				for (std::size_t i = 0; i < count; i++)
 				{
-					tc.PushInfiniteTaskBack([&](auto taskNumber)
-						{
-							std::osyncstream os(std::cout);
-							os << "Task with args: [" << taskNumber << "] running...\n";
-							os.emit();
-							std::this_thread::sleep_for(SleepTime);
-						}, i);
+					const auto TaskLam = [&](const auto taskNumber) -> void
+					{
+						constexpr auto SleepTime{ std::chrono::milliseconds(250) };
+						std::osyncstream os(std::cout);
+						os << "Task with args: [" << taskNumber << "] running...\n";
+						os.emit();
+						std::this_thread::sleep_for(SleepTime);
+					};
+					tc.PushInfiniteTaskBack(TaskLam, i);
 				}
 			};
 
