@@ -30,7 +30,7 @@ namespace impcool
         t.SetPauseValueUnordered(true);
         t.WaitForPauseCompleted();
         t.DestroyThread();
-        t.PushInfiniteTaskBack([](int) {}, 1);
+        t.PushInfiniteTaskBack([]() {}, 1);
         t.GetNumberOfTasks();
     };
 
