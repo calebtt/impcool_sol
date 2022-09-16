@@ -5,3 +5,7 @@
  * Infinite tasks are not popped and removed from the list after one iteration.
  * MIT license.
  
+<p>
+ See the 
+ <a href="https://github.com/calebtt/impcool_sol/blob/master/immutable_thread_pool/ThreadUnitPlus.h">ThreadUnitPlus </a>
+  class for a usable single thread container.  </p>
