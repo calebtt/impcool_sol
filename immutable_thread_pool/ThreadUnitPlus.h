@@ -134,6 +134,10 @@ namespace impcool
         {
             m_conditionalsPack.UnorderedPausePack.UpdateState(enablePause);
         }
+        [[nodiscard]] bool IsRunning() const
+        {
+            return m_workThreadObj != nullptr && !m_stopSource.stop_requested();
+        }
         /// <summary>
         /// Queryable by the user to indicate that the state of the running thread is indeed
         /// in a paused state. After requesting a pause, a user should query this member fn to know
