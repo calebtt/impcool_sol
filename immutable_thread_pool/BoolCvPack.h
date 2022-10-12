@@ -20,13 +20,12 @@ namespace impcool
     struct BoolCvPack
     {
         // Some type aliases used in the condition variable packs, and possibly elsewhere.
-        using CvMutex = std::mutex;
         // alias for std::condition_variable type
         using CvConditionVar = std::condition_variable;
         // An alias for the scoped lock type used to lock the cv mutex before modifying the shared variable.
-        using SetterLock_t = std::lock_guard<CvMutex>;
+        using SetterLock_t = std::lock_guard<std::mutex>;
         // An alias for the scoped lock type used to lock the cv mutex when calling wait() on the condition var.
-        using WaiterLock_t = std::unique_lock<CvMutex>;
+        using WaiterLock_t = std::unique_lock<std::mutex>;
         // Stop source can be used to cancel the wait operations.
         using StopSource_t = std::stop_source;
     public:
@@ -35,7 +34,7 @@ namespace impcool
         /// <summary> A condition variables used to notify the work thread when "shared data" becomes false. </summary>
         CvConditionVar task_running_cv{};
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
-        CvMutex running_mutex{};
+        std::mutex running_mutex{};
         // Stop source used to cancel the wait operations.
         StopSource_t stop_source{ std::nostopstate };
     public:

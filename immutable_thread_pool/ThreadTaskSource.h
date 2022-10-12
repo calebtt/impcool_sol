@@ -13,9 +13,18 @@
 #include <memory>
 #include <functional>
 #include <deque>
+#include <ranges>
+#include "ThreadConcepts.h"
 
 namespace impcool
 {
+    /// <summary> Concept for a range of std::function or something convertible to it. </summary>
+    template<typename FnRange_t>
+    concept IsFnRange = requires(FnRange_t & t)
+    {
+        { std::ranges::range<FnRange_t> };
+        { std::convertible_to<typename FnRange_t::value_type, std::function<void()>> };
+    };
 
 	/// <summary>
 	/// ThreadTaskSource provides a container that holds async tasks, and some functions
@@ -24,13 +33,10 @@ namespace impcool
 	class ThreadTaskSource
 	{
 	public:
-		using TaskWrapper_t = std::function<void()>;
-		using TaskContainer_t = std::deque<TaskWrapper_t>;
+        using TaskInfo = std::function<void()>;
 	public:
-        /// <summary>
-        /// Public data member, allows direct access to the task source.
-        /// </summary>
-        TaskContainer_t TaskList{};
+        /// <summary> Public data member, allows direct access to the task source. </summary>
+        std::deque<TaskInfo> TaskList{};
 	public:
         /// <summary> Push a function with zero or more arguments, but no return value, into the task list. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
@@ -42,11 +48,11 @@ namespace impcool
         {
             if constexpr (sizeof...(args) == 0)
             {
-                TaskList.push_back(std::function<void()>{taskFn});
+                TaskList.emplace_back(std::function<void()>{taskFn});
             }
             else
             {
-                TaskList.push_back(std::function<void()>([taskFn, args...] { taskFn(args...); }));
+                TaskList.emplace_back(std::function<void()>([taskFn, args...] { taskFn(args...); }));
             }
         }
 
@@ -60,11 +66,20 @@ namespace impcool
         {
             if constexpr (sizeof...(args) == 0)
             {
-                TaskList.push_front(std::function<void()>(task));
+                TaskList.emplace_front(std::function<void()>{task});
             }
             else
             {
-                TaskList.push_front(std::function<void()>([task, args...] { task(args...); }));
+                TaskList.emplace_front(std::function<void()>([task, args...] { task(args...); }));
+            }
+        }
+
+        void ResetTaskList(const IsFnRange auto &taskContainer)
+        {
+            TaskList = {};
+            for( const auto &elem : taskContainer)
+            {
+                TaskList.emplace_back(elem);
             }
         }
 	};

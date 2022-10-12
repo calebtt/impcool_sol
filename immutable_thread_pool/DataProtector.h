@@ -16,7 +16,7 @@ namespace impcool
         ProtectedData* m_data;
         MutexType* m_mut;
     public:
-        DataProtector(ProtectedData& data, MutexType &mut) : m_data(data), m_mut(mut) {}
+        DataProtector(ProtectedData& data, MutexType &mut) : m_data(&data), m_mut(&mut) {}
         ProtectedData* get()
         {
             m_mut->lock();

@@ -1,8 +1,8 @@
 #include "pch.h"
 #include "CppUnitTest.h"
 #include "ThreadUnitTests.h"
-#include "../immutable_thread_pool/ThreadUnitPlus.h"
-#include "../immutable_thread_pool/ThreadPool.h"
+#include "../immutable_thread_pool/ThreadUnitPlusPlus.h"
+#include "../immutable_thread_pool/ThreadPooler.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -26,7 +26,7 @@ namespace threadpooltests
 			using namespace std::chrono;
 			static constexpr std::size_t TaskCount{ 5 };
 			const std::string TestName{ "TestThreadPoolBasics" };
-			impcool::ThreadPool tp{};
+			impcool::ThreadPooler<4, impcool::ThreadUnitPlusPlus> tp;
 			tp.CreateAll();
 			tp.DestroyAll();
 			tp.CreateAll();
@@ -39,7 +39,7 @@ namespace threadpooltests
 			// Add TaskCount tasks
 			for (std::size_t i{}; i < TaskCount; ++i)
 			{
-				tp.PushInfiniteTaskBack(MsgFn);
+				tp.PushApportionedTask(MsgFn);
 			}
 
 			std::this_thread::sleep_for(2s);
@@ -48,10 +48,10 @@ namespace threadpooltests
 			Assert::AreEqual(tp.GetTaskCount(), TaskCount, L"Task count not measured to be what we added!\n");
 
 			// get non-owning pointer to internal threadunit array
-			const auto* threads = tp.GetThreadList();
+			auto& threads = tp.ThreadList;
 			// perform self count of tasks in all threads within
 			std::size_t tempTaskCount{};
-			for (const auto& elem : *threads)
+			for (const auto& elem : threads)
 				tempTaskCount += elem.GetTaskList().size();
 			// assert self count and reported count are equal.
 			Assert::AreEqual(tp.GetTaskCount(), tempTaskCount, L"Self measured task count is not equal to count reported by call to GetTaskCount()\n");
@@ -63,14 +63,14 @@ namespace threadpooltests
 
 		TEST_METHOD(TestMutateInternalArray)
 		{
-			impcool::ThreadPool tp;
-			auto *threadList = tp.GetThreadList();
-			Assert::IsFalse(threadList->empty(), L"Default constructed threadpool returned an array of threads that was empty!");
+			impcool::ThreadPooler tp;
+			auto& threadList = tp.ThreadList;
+			Assert::IsFalse(threadList.empty(), L"Default constructed threadpool returned an array of threads that was empty!");
 
 			// For each thread unit in the array, add a task and run it once before destroying while paused.
-			for(size_t i = 0; i < tp.GetThreadList()->size(); i++)
+			for(size_t i = 0; i < tp.ThreadList.size(); i++)
 			{
-				auto& firstThread = threadList->at(i);
+				auto& firstThread = threadList.at(i);
 				firstThread.PushInfiniteTaskBack([]() { Logger::WriteMessage("From task.\n"); });
 				Assert::IsTrue(firstThread.GetNumberOfTasks() != 0, L"Number of tasks returned from the retrieved ThreadUnit is reported as 0!");
 				firstThread.SetPauseValueOrdered(true);
@@ -79,9 +79,9 @@ namespace threadpooltests
 				firstThread.DestroyThread();
 			}
 			// Now try canceling the pause before requesting it again.
-			for (size_t i = 0; i < tp.GetThreadList()->size(); i++)
+			for (size_t i = 0; i < tp.ThreadList.size(); i++)
 			{
-				auto& firstThread = threadList->at(i);
+				auto& firstThread = threadList.at(i);
 				firstThread.PushInfiniteTaskBack([]() { Logger::WriteMessage("From task.\n"); });
 				Assert::IsTrue(firstThread.GetNumberOfTasks() != 0, L"Number of tasks returned from the retrieved ThreadUnit is reported as 0!");
 				firstThread.SetPauseValueOrdered(true);
@@ -98,10 +98,10 @@ namespace threadpooltests
 			using namespace std::chrono_literals;
 			using namespace std::chrono;
 			static constexpr auto TimeDelay{ 1s };
-			impcool::ThreadPool tp{};
+			impcool::ThreadPooler tp{};
 			//tp.CreateAll();
 			std::atomic<bool> testCondition{ false };
-			tp.PushInfiniteTaskBack([&]()
+			tp.PushApportionedTask([&]()
 				{
 					testCondition = true;
 					std::this_thread::sleep_for(TimeDelay);

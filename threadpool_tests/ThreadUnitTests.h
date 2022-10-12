@@ -1,8 +1,8 @@
 #pragma once
 #include "pch.h"
 #include "CppUnitTest.h"
-#include "../immutable_thread_pool/ThreadUnitPlus.h"
-#include "../immutable_thread_pool/ThreadPool.h"
+#include "../immutable_thread_pool/ThreadUnitPlusPlus.h"
+#include "../immutable_thread_pool/ThreadPooler.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
@@ -14,17 +14,13 @@ namespace threadpooltests
 
 		TEST_METHOD(TestTUCreate)
 		{
-			impcool::ThreadUnitPlus tu{};
-			Assert::IsTrue(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
-			Assert::IsFalse(tu.CreateThread());
+			impcool::ThreadUnitPlusPlus tu{};
 		}
 
 		TEST_METHOD(TestStartStopPause)
 		{
 			static constexpr std::size_t TaskCount{ 10 };
-			impcool::ThreadUnitPlus tu{};
+			impcool::ThreadUnitPlusPlus tu{};
 			const auto AddLotsOfTasks = [](auto& tc, const std::size_t count)
 			{
 				using namespace std::chrono_literals;
@@ -38,7 +34,7 @@ namespace threadpooltests
 						os.emit();
 						std::this_thread::sleep_for(SleepTime);
 					};
-					tc.PushInfiniteTaskBack(TaskLam, i);
+					tc.TaskList.PushInfiniteTaskBack(TaskLam, i);
 				}
 			};
 
