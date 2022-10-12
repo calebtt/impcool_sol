@@ -25,7 +25,7 @@
 namespace impcool
 {
     /// <summary> Class for working with a thread and task list.
-    /// Manages running a thread pool thread. The thread can be started, paused, and destroyed.
+    /// Manages running a thread pool thread. The thread can be paused, and destroyed.
     /// The task list can be simply returned as it is not mutated in-use only copied, or counted.
     /// A low-level granular kind of access is desirable here, if possible. </summary>
     /// <remarks> This class is also useable on it's own, if so desired. There are two mutually exclusive
@@ -86,9 +86,9 @@ namespace impcool
     public:
 
         /// <summary> Ctor creates the thread. </summary>
-        ThreadUnitPlusPlus(impcool::ThreadTaskSource tasks = {})
+        ThreadUnitPlusPlus(const impcool::ThreadTaskSource tasks = {})
         {
-            m_taskList = std::move(tasks);
+            m_taskList = tasks;
             CreateThread(m_taskList, false);
         }
 
@@ -196,7 +196,7 @@ namespace impcool
                 m_conditionalsPack.OrderedPausePack.UpdateState(isPausedOnStart);
                 m_conditionalsPack.UnorderedPausePack.UpdateState(false);
                 //make thread obj
-                m_workThreadObj = std::make_unique<Thread_t>([&](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
+                m_workThreadObj = std::make_unique<Thread_t>([=](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
                 //make local handle to stop_source for thread
                 m_stopSource = m_workThreadObj->get_stop_source();
                 //update conditionals pack to have stop handle

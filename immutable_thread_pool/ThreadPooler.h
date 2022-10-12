@@ -1,9 +1,9 @@
 /*
- * ThreadPool.h
+ * ThreadPooler.h
  * A thread pool that utilizes the concept of immutability to
  * make implementation simpler. The task buffer is copied upon
  * thread creation and no shared data exists there.
- * Caleb T. Oct 9th, 2022
+ * Caleb T. Oct 12th, 2022
  * MIT license.
  */
 #pragma once
@@ -32,7 +32,6 @@ namespace impcool
     /// <remarks>
     /// Non-copyable.
     /// Non-moveable.
-    /// Does start the threads running on construction.
     /// </remarks>
     template<unsigned NumThreads = 4, IsThreadUnit ThreadProvider_t = impcool::ThreadUnitPlusPlus>
     class ThreadPooler
@@ -45,13 +44,7 @@ namespace impcool
         /// <summary> <b>PUBLIC</b> member, the list of threads </summary>
         std::array<ThreadProvider_t, NumThreads> ThreadList{};
     public:
-        ThreadPooler()
-        {
-            for (auto& elem : ThreadList)
-            {
-                elem.CreateThread();
-            }
-        }
+        ThreadPooler() = default;
     public:
         /// <summary> Blocking, destroys each thread (by joining) and resets their task list to empty before
         /// re-creation. </summary>
@@ -65,13 +58,12 @@ namespace impcool
 
         /// <summary> Adds a properly apportioned (wrt to the number of threads) task.
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
-        /// <returns> A unique task id (integer) </returns>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
         /// <param name="taskFn"> The function to push. </param>
         /// <param name="args"> The arguments to pass to the function. </param>
         template <typename F, typename... A>
-        auto PushApportionedTask(const F& taskFn, const A&... args)
+        void PushApportionedTask(const F& taskFn, const A&... args)
         {
             // iterate list, find placement for task (thread with fewest tasks)
             auto minIt = std::min_element(ThreadList.begin(), ThreadList.end(), [](const auto& lhs, const auto& rhs)
@@ -79,7 +71,9 @@ namespace impcool
                     return lhs.GetNumberOfTasks() < rhs.GetNumberOfTasks();
                 });
             assert(minIt != ThreadList.end());
-            return minIt->PushInfiniteTaskBack(taskFn, args...);
+            auto tempTaskList = minIt->GetTaskSource();
+            tempTaskList->PushInfiniteTaskBack(taskFn, args...);
+            minIt->SetTaskList(tempTaskList);
         }
 
         /// <summary> Assign a pre-constructed range of std::function with zero arguments, and no return value, into the task list management object(s).

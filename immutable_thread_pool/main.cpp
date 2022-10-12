@@ -39,118 +39,36 @@ void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
 	}
 }
 
-//void TestThreadUnit(std::osyncstream &os, const auto &MultiPrint, const size_t taskCount = 5)
-//{
-//	MultiPrint("\n\nBeginning test of the Thread Unit type...\n");
-//	//thread unit object
-//	impcool::ThreadUnitPlus tc;
-//
-//	std::string buffer;
-//	// Add lots of tasks that perform simple work, printing a message.
-//	// Tasks of the argument-less form as well as tasks with arguments.
-//	AddLotsOfTasks(tc, taskCount);
-//
-//	std::getline(std::cin, buffer);
-//	MultiPrint("Adding another task, while it's running...\n");
-//	tc.PushInfiniteTaskFront([]() { std::cout << "Another wonderful task added...\n"; });
-//	// Pausing the thread, will wait for the entire list of tasks to
-//	// be executed first.
-//	std::getline(std::cin, buffer);
-//	MultiPrint("Pausing (ordered)...\n");
-//	//tc.SetPauseValueUnordered(true);
-//	tc.SetPauseValueOrdered(true);
-//
-//	// Un-pausing the thread, will resume executing the tasks on the thread.
-//	std::getline(std::cin, buffer);
-//	MultiPrint("Unpausing...\n");
-//	tc.SetPauseValueOrdered(false);
-//	//tc.SetPauseValueUnordered(false);
-//
-//	// Test aborting the "pause" state and destroying the thread immediately.
-//	std::getline(std::cin, buffer);
-//	MultiPrint("Testing destroy while pause is requested...\n");
-//	tc.SetPauseValueOrdered(true);
-//	tc.DestroyThread();
-//	tc.DestroyThread();
-//
-//	// Test adding tasks while paused.
-//	std::getline(std::cin, buffer);
-//	MultiPrint("Testing add task while paused...\n");
-//	//tc.SetPauseValueOrdered(true);
-//	tc.WaitForPauseCompleted();
-//	tc.PushInfiniteTaskBack([]() { std::cout << "Task added while paused...\n"; });
-//
-//	// Create a new thread and add new tasks to it.
-//	MultiPrint("Creating new thread and pool...\n");
-//	tc.CreateThread();
-//	AddLotsOfTasks(tc, 2, false);
-//	MultiPrint("Added new tasks...\n");
-//
-//	std::getline(std::cin, buffer);
-//	std::cout << "Pausing again (unordered)...\n";
-//	tc.SetPauseValueUnordered(true);
-//
-//	std::getline(std::cin, buffer);
-//	std::cout << "Unpausing again...\n";
-//	tc.SetPauseValueUnordered(false);
-//	// Enter to exit here, testing destructor.
-//	std::getline(std::cin, buffer);
-//}
-//
-//template<unsigned ThreadCount = 2>
-//void TestThreadPool(std::osyncstream &os, const auto &MultiPrint, const int TaskCount)
-//{
-//	using namespace std::chrono_literals;
-//	static constexpr auto TaskSleepTime = 250ms;
-//	std::string buffer;
-//	//test thread pool
-//	MultiPrint("Beginning the test of the ThreadPool class...\n");
-//	
-//	std::getline(std::cin, buffer);
-//	impcool::ThreadPool<ThreadCount, impcool::ThreadUnitPlus> tp;
-//	tp.PushInfiniteTaskBack([]()
-//	{
-//		std::osyncstream os(std::cout);
-//		os << "ThreadPool first task running...\n";
-//		os.emit();
-//		std::this_thread::sleep_for(TaskSleepTime);
-//	});
-//	// After the single task has been added, set the pause value to true and wait for it.
-//	std::this_thread::sleep_for(std::chrono::milliseconds(750));
-//	tp.SetPauseThreadsOrdered(true);
-//	tp.WaitForPauseCompleted();
-//	MultiPrint("Now we will add a few more tasks, and hope that we can avoid seeing the first task run again.\n");
-//	tp.PushInfiniteTaskBack([]()
-//		{
-//			std::osyncstream os(std::cout);
-//			os << "ThreadPool task added while paused... \n";
-//			os.emit();
-//			std::this_thread::sleep_for(TaskSleepTime);
-//		});
-//	tp.PushInfiniteTaskBack([]()
-//		{
-//			std::osyncstream os(std::cout);
-//			os << "ThreadPool task added while paused... \n";
-//			os.emit();
-//			std::this_thread::sleep_for(TaskSleepTime);
-//		});
-//	MultiPrint("If no output was between here and the last message, the pause before adding threads works.\n");
-//	std::getline(std::cin, buffer);
-//	MultiPrint("\n\nAdding " + std::to_string(TaskCount) + " tasks after clearing and un-pausing...\n\n");
-//	tp.DestroyAll();
-//	AddLotsOfTasks(tp, TaskCount, false);
-//	tp.SetPauseThreadsOrdered(false);
-//	std::getline(std::cin, buffer);
-//}
-
 // Test of the ThreadUnitPlusPlus new paradigm
 void TestThreadPP()
 {
+	// here we begin by creating a ThreadTaskSource object, it holds a range of std::function tasks.
+	// and it provides the operations needed to add objects to them, namely synonyms for push_back and push_front
+	// it also handles passing arguments into the task function.
+	// It essentially copies the object into a wrapper std::function around the original (user provided) lambda std::function, where the wrapper function
+	// is able to keep alive say, a shared_ptr, via the type erasure feature of the std::function. So you can pass in a
+	// *capturing* lambda and have the task keep the data alive while used! For the example here, I will create
+	// a shared_ptr to an osyncstream for synchronizing multi-threaded use of cout.
+
+	std::shared_ptr<std::osyncstream> osp = std::make_shared<std::osyncstream>(std::cout);
+
+	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
 	impcool::ThreadTaskSource tts;
-	tts.PushInfiniteTaskBack([]() { std::cerr << "A task running.\n"; });
+	// Push the capturing lambda.
+	tts.PushInfiniteTaskBack([&]()
+	{
+		*osp << "A task is running...\n";
+		osp->emit();
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	});
+
+	// Construct the thread unit object, pass our constructed task source object.
 	impcool::ThreadUnitPlusPlus tupp(tts);
-	const auto makeRV = []() { return impcool::ThreadTaskSource{}; };
-	impcool::ThreadUnitPlusPlus tupp2(makeRV());
+
+	// Let the thread run the task until 'enter' is pressed.
+	*osp << "Press Enter to stop the test.\n";
+	std::string buffer;
+	std::getline(std::cin, buffer);
 }
 //InfiniteThreadPool test
 int main()
@@ -164,8 +82,8 @@ int main()
 	};
 	static constexpr int TaskCount{ 5 };
 	std::string buffer;
-	////test thread unit
-	//TestThreadUnit(os, MultiPrint, TaskCount);
+	//test thread unit
+	TestThreadPP();
 
 	////test thread pool
 	//TestThreadPool(os, MultiPrint, TaskCount);
