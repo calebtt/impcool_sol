@@ -76,25 +76,25 @@ namespace impcool
             minIt->SetTaskList(tempTaskList);
         }
 
-        /// <summary> Assign a pre-constructed range of std::function with zero arguments, and no return value, into the task list management object(s).
+        /// <summary> Apportion a pre-constructed ThreadTaskSource into the thread unit management object(s).
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
-        /// <param name="taskFnList"> The list of functions to push. </param> >
-        void ResetInfiniteTaskArray(const IsFnRange auto& taskFnList)
+        /// <param name="taskFnList"> The task source aka list of functions to push. </param> 
+        void ResetInfiniteTaskArray(const ThreadTaskSource taskFnList)
         {
-            //TODO complete this, stops thread, resets task container.
-
+            // TODO split the task source range into 'NumThreads' pieces, call SetTaskSource() on each thread unit.
+            
             // Iterate the list of threads, request an ordered pause.
-            for (auto& threadUnit : ThreadList)
-                threadUnit.SetPauseValueOrdered(true);
-            // Wait for ordered pause to complete...
-            for (auto& threadUnit : ThreadList)
-                threadUnit.WaitForPauseCompleted();
-            //TODO this is broken!
-            for (const auto& taskElem : taskFnList)
-            {
-                // iterate list, find placement for task (thread with fewest tasks)
-                PushApportionedTask(taskElem);
-            }
+            //for (auto& threadUnit : ThreadList)
+            //    threadUnit.SetPauseValueOrdered(true);
+            //// Wait for ordered pause to complete...
+            //for (auto& threadUnit : ThreadList)
+            //    threadUnit.WaitForPauseCompleted();
+            ////TODO this is broken!
+            //for (const auto& taskElem : taskFnList)
+            //{
+            //    // iterate list, find placement for task (thread with fewest tasks)
+            //    PushApportionedTask(taskElem);
+            //}
         }
 
         void SetPauseThreadsOrdered(const bool doPause)
