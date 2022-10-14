@@ -38,11 +38,16 @@ namespace impcool
         /// <summary> Public data member, allows direct access to the task source. </summary>
         std::deque<TaskInfo> TaskList{};
 	public:
+        ThreadTaskSource() = default;
+        ThreadTaskSource(const IsFnRange auto &taskList)
+        {
+            TaskList = taskList;
+        }
         /// <summary> Push a function with zero or more arguments, but no return value, into the task list. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
         /// <param name="taskFn"> The function to push. </param>
-        /// <param name="args"> The arguments to pass to the function. </param>
+        /// <param name="args"> The arguments to pass to the function (by value). </param>
         template <typename F, typename... A>
         void PushInfiniteTaskBack(const F& taskFn, const A&... args)
         {
@@ -60,7 +65,7 @@ namespace impcool
         /// <typeparam name="F"> The type of the function. </typeparam>
         /// <typeparam name="A"> The types of the arguments. </typeparam>
         /// <param name="task"> The function to push. </param>
-        /// <param name="args"> The arguments to pass to the function. </param>
+        /// <param name="args"> The arguments to pass to the function (by value). </param>
         template <typename F, typename... A>
         void PushInfiniteTaskFront(const F& task, const A&... args)
         {

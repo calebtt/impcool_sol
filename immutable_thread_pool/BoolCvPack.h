@@ -29,14 +29,14 @@ namespace impcool
         // Stop source can be used to cancel the wait operations.
         using StopSource_t = std::stop_source;
     public:
-        /// <summary> The shared data condition flag holding the notifiable state. </summary>
-        std::atomic<bool> is_condition_true{ false };
         /// <summary> A condition variables used to notify the work thread when "shared data" becomes false. </summary>
         CvConditionVar task_running_cv{};
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
         std::mutex running_mutex{};
         // Stop source used to cancel the wait operations.
         StopSource_t stop_source{ std::nostopstate };
+        /// <summary> The shared data condition flag holding the notifiable state. </summary>
+        std::atomic<bool> is_condition_true{ false };
     public:
         BoolCvPack() = default;
         ~BoolCvPack() = default;

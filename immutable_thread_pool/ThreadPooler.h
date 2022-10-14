@@ -14,6 +14,7 @@
 #include <syncstream>
 #include <array>
 #include <algorithm>
+#include <ranges>
 #include <cassert>
 #include "ThreadConcepts.h"
 #include "ThreadUnitPlusPlus.h"
@@ -78,23 +79,26 @@ namespace impcool
 
         /// <summary> Apportion a pre-constructed ThreadTaskSource into the thread unit management object(s).
         /// These tasks are run infinitely, are not popped from the task list after completion. </summary>
-        /// <param name="taskFnList"> The task source aka list of functions to push. </param> 
+        /// <param name="taskFnList"> The task source aka list of functions to push. </param>
         void ResetInfiniteTaskArray(const ThreadTaskSource taskFnList)
         {
-            // TODO split the task source range into 'NumThreads' pieces, call SetTaskSource() on each thread unit.
-            
-            // Iterate the list of threads, request an ordered pause.
-            //for (auto& threadUnit : ThreadList)
-            //    threadUnit.SetPauseValueOrdered(true);
-            //// Wait for ordered pause to complete...
-            //for (auto& threadUnit : ThreadList)
-            //    threadUnit.WaitForPauseCompleted();
-            ////TODO this is broken!
-            //for (const auto& taskElem : taskFnList)
-            //{
-            //    // iterate list, find placement for task (thread with fewest tasks)
-            //    PushApportionedTask(taskElem);
-            //}
+            // Number of tasks.
+            const std::size_t taskCount = taskFnList.TaskList.size();
+            // Tasks per thread.
+            const auto tempCount = (taskCount / NumThreads);
+            const std::size_t tasksPer = tempCount > 0 ? tempCount : 1;
+            const auto chunkedTasks = taskFnList.TaskList | std::ranges::views::chunk(tasksPer);
+            //std::cerr << typeid(chunkedTasks).name();
+
+            // Assert the count of chunks produced is less than equal the num threads...
+            assert(chunkedTasks.size() <= NumThreads);
+            // Set the new task lists...
+            for(std::size_t i{}; i < chunkedTasks.size(); ++i)
+            {
+                const auto viewIndex = static_cast<long long>(i);
+                const std::deque<std::function<void()>> tempChunk{ chunkedTasks[viewIndex].begin(), chunkedTasks[viewIndex].end() };
+                ThreadList[i].SetTaskSource(tempChunk);
+            }
         }
 
         void SetPauseThreadsOrdered(const bool doPause)
@@ -107,18 +111,6 @@ namespace impcool
         {
             for (auto& elem : ThreadList)
                 elem.SetPauseValueUnordered(doPause);
-        }
-
-        bool CreateAll()
-        {
-            bool createReturn = true;
-            for (auto& elem : ThreadList)
-            {
-                const bool createResult = elem.CreateThread();
-                if (!createResult)
-                    createReturn = createResult;
-            }
-            return createReturn;
         }
 
         void DestroyAll()

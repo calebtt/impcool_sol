@@ -57,7 +57,7 @@ void TestThreadPP()
 	// Push the capturing lambda.
 	tts.PushInfiniteTaskBack([&]()
 	{
-		*osp << "A task is running...\n";
+		*osp << "A ThreadUnitPlusPlus task is running...\n";
 		osp->emit();
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	});
@@ -70,6 +70,35 @@ void TestThreadPP()
 	std::string buffer;
 	std::getline(std::cin, buffer);
 }
+
+void TestPooler()
+{
+	// here we begin by creating a ThreadPooler object,
+
+	std::shared_ptr<std::osyncstream> osp = std::make_shared<std::osyncstream>(std::cout);
+
+	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
+	impcool::ThreadTaskSource tts;
+	// Push the capturing lambda.
+	tts.PushInfiniteTaskBack([&]()
+		{
+			*osp << "A ThreadPooler task is running...\n";
+			osp->emit();
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		});
+
+	// Construct a thread pooler object
+	impcool::ThreadPooler<8> tpr;
+
+	// Reset aggregate task source
+	tpr.ResetInfiniteTaskArray(tts);
+
+	// Let the thread run the task until 'enter' is pressed.
+	*osp << "Press Enter to stop the test.\n";
+	std::string buffer;
+	std::getline(std::cin, buffer);
+}
+
 //InfiniteThreadPool test
 int main()
 {
@@ -85,8 +114,8 @@ int main()
 	//test thread unit
 	TestThreadPP();
 
-	////test thread pool
-	//TestThreadPool(os, MultiPrint, TaskCount);
+	//test thread pool
+	TestPooler();
 
 	MultiPrint("\nEnter to exit...\n\n");
 	std::getline(std::cin, buffer);

@@ -178,8 +178,6 @@ namespace impcool
         /// <remarks><b>WILL CLEAR the task source!</b> To start the thread again, just set a new task source.</remarks>
         void DestroyThread()
         {
-            //SetPauseValueOrdered(false);
-            //SetPauseValueUnordered(false);
             StartDestruction();
             WaitForDestruction();
             m_taskList.TaskList = {};
@@ -196,7 +194,7 @@ namespace impcool
                 m_conditionalsPack.OrderedPausePack.UpdateState(isPausedOnStart);
                 m_conditionalsPack.UnorderedPausePack.UpdateState(false);
                 //make thread obj
-                m_workThreadObj = std::make_unique<Thread_t>([=](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
+                m_workThreadObj = std::make_unique<Thread_t>([=, this](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
                 //make local handle to stop_source for thread
                 m_stopSource = m_workThreadObj->get_stop_source();
                 //update conditionals pack to have stop handle
