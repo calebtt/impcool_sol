@@ -13,7 +13,7 @@
 #include <thread>
 #include <functional>
 
-namespace impcool
+namespace imp
 {
     /// <summary> Pack of types used with a condition variable, and the functions
     /// that operate on them. Default constructed object has is_condition_true set to false. </summary>

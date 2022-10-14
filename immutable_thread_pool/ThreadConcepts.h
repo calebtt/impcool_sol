@@ -5,7 +5,7 @@
 
 #include "ThreadTaskSource.h"
 
-namespace impcool
+namespace imp
 {
     /// <summary>
     /// Concept for a ThreadUnit describing operations that must be supported.

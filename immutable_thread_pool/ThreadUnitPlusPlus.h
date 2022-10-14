@@ -22,7 +22,7 @@
 #include "ThreadTaskSource.h"
 #include "BoolCvPack.h"
 
-namespace impcool
+namespace imp
 {
     /// <summary> Class for working with a thread and task list.
     /// Manages running a thread pool thread. The thread can be paused, and destroyed.
@@ -40,15 +40,15 @@ namespace impcool
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
 
         // Alias for the ThreadTaskSource which provides a container and some operations.
-        using TaskOpsProvider_t = impcool::ThreadTaskSource;
+        using TaskOpsProvider_t = imp::ThreadTaskSource;
         using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
 
     private:
         struct ThreadConditionals
         {
-	        impcool::BoolCvPack OrderedPausePack;
-	        impcool::BoolCvPack UnorderedPausePack;
-	        impcool::BoolCvPack PauseCompletedPack;
+	        imp::BoolCvPack OrderedPausePack;
+	        imp::BoolCvPack UnorderedPausePack;
+	        imp::BoolCvPack PauseCompletedPack;
             //BoolCvPack isStopRequested;
             // Waits for both pause requests to be false.
             void WaitForBothPauseRequestsFalse()
@@ -86,7 +86,7 @@ namespace impcool
     public:
 
         /// <summary> Ctor creates the thread. </summary>
-        ThreadUnitPlusPlus(const impcool::ThreadTaskSource tasks = {})
+        ThreadUnitPlusPlus(const imp::ThreadTaskSource tasks = {})
         {
             m_taskList = tasks;
             CreateThread(m_taskList, false);

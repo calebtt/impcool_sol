@@ -1,7 +1,7 @@
 #pragma once
 #include <mutex>
 
-namespace impcool
+namespace imp
 {
     /// <summary>
     /// Unused as of yet. Just an idea for returning a wrapped

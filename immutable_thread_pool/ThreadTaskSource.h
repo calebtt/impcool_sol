@@ -16,7 +16,7 @@
 #include <ranges>
 #include "ThreadConcepts.h"
 
-namespace impcool
+namespace imp
 {
     /// <summary> Concept for a range of std::function or something convertible to it. </summary>
     template<typename FnRange_t>

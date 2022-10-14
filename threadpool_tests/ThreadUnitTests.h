@@ -14,13 +14,14 @@ namespace threadpooltests
 
 		TEST_METHOD(TestTUCreate)
 		{
-			impcool::ThreadUnitPlusPlus tu{};
+			imp::ThreadUnitPlusPlus tu{};
 		}
 
-		TEST_METHOD(TestStartStopPause)
+		TEST_METHOD(TestStopPause)
 		{
 			static constexpr std::size_t TaskCount{ 10 };
-			impcool::ThreadUnitPlusPlus tu{};
+			imp::ThreadTaskSource tts{};
+			imp::ThreadUnitPlusPlus tu{};
 			const auto AddLotsOfTasks = [](auto& tc, const std::size_t count)
 			{
 				using namespace std::chrono_literals;
@@ -34,11 +35,11 @@ namespace threadpooltests
 						os.emit();
 						std::this_thread::sleep_for(SleepTime);
 					};
-					tc.TaskList.PushInfiniteTaskBack(TaskLam, i);
+					tc.PushInfiniteTaskBack(TaskLam, i);
 				}
 			};
 
-			Assert::IsTrue(tu.CreateThread());
+			Assert::IsTrue(tu.IsRunning());
 
 			// test pause completion status
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
@@ -59,15 +60,12 @@ namespace threadpooltests
 			// destroy again
 			tu.DestroyThread();
 			// create a new thread
-			Assert::IsTrue(tu.CreateThread(), L"Thread not created when it should be.");
-			// test create while created
-			Assert::IsFalse(tu.CreateThread(), L"Thread created when it shouldn't be!");
-			AddLotsOfTasks(tu, TaskCount);
-			// test create while created and has task
-			Assert::IsFalse(tu.CreateThread(), L"Thread created when it shouldn't be!");
+			tu.SetTaskSource({});
+			Assert::IsTrue(tu.IsRunning(), L"Thread not created when it should be.");
+			AddLotsOfTasks(tts, TaskCount);
+			tu.SetTaskSource(tts);
 			// test task count is correct
-			const auto taskCount = tu.GetNumberOfTasks();
-			Assert::IsTrue(taskCount == TaskCount, L"Task count not correct!");
+			Assert::AreEqual(TaskCount, tu.GetNumberOfTasks(), L"Task count doesn't match what is in the thread unit!");
 			// test pause completion status
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
 		}

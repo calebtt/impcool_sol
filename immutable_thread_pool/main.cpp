@@ -35,7 +35,7 @@ void TestThreadPP()
 	std::shared_ptr<std::osyncstream> osp = std::make_shared<std::osyncstream>(std::cout);
 
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
-	impcool::ThreadTaskSource tts;
+	imp::ThreadTaskSource tts;
 	// Push the capturing lambda.
 	tts.PushInfiniteTaskBack([&]()
 	{
@@ -45,7 +45,7 @@ void TestThreadPP()
 	});
 
 	// Construct the thread unit object, pass our constructed task source object.
-	impcool::ThreadUnitPlusPlus tupp(tts);
+	imp::ThreadUnitPlusPlus tupp(tts);
 
 	// Let the thread run the task until 'enter' is pressed.
 	*osp << "Press Enter to stop the test.\n";
@@ -58,7 +58,7 @@ void TestPooler()
 	static constexpr int TaskCount{ 5 };
 	static constexpr int ThreadCount{ 3 };
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
-	impcool::ThreadTaskSource tts;
+	imp::ThreadTaskSource tts;
 	// Push the capturing lambda.
 	tts.PushInfiniteTaskBack([&]()
 		{
@@ -70,7 +70,7 @@ void TestPooler()
 	AddLotsOfTasks(tts, TaskCount-1);
 
 	// Construct a thread pooler object
-	impcool::ThreadPooler<ThreadCount> tpr;
+	imp::ThreadPooler<ThreadCount> tpr;
 
 	// Reset aggregate task source, this evenly apportions the tasks across the number of threads.
 	// If you want to specify which tasks go on which thread, you can access the task array directly.

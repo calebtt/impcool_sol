@@ -19,7 +19,7 @@
 #include "ThreadConcepts.h"
 #include "ThreadUnitPlusPlus.h"
 
-namespace impcool
+namespace imp
 {
     /// <summary>
     /// A thread pool for running infinitely reoccurring tasks.
@@ -34,7 +34,7 @@ namespace impcool
     /// Non-copyable.
     /// Non-moveable.
     /// </remarks>
-    template<unsigned NumThreads = 4, IsThreadUnit ThreadProvider_t = impcool::ThreadUnitPlusPlus>
+    template<unsigned NumThreads = 4, IsThreadUnit ThreadProvider_t = imp::ThreadUnitPlusPlus>
     class ThreadPooler
     {
         static_assert(NumThreads > 0, "Number of Threads must be > 0...");
@@ -73,8 +73,8 @@ namespace impcool
                 });
             assert(minIt != ThreadList.end());
             auto tempTaskList = minIt->GetTaskSource();
-            tempTaskList->PushInfiniteTaskBack(taskFn, args...);
-            minIt->SetTaskList(tempTaskList);
+            tempTaskList.PushInfiniteTaskBack(taskFn, args...);
+            minIt->SetTaskSource(tempTaskList);
         }
 
         /// <summary> Apportion a pre-constructed ThreadTaskSource into the thread unit management object(s).
@@ -84,14 +84,15 @@ namespace impcool
         {
             // Number of tasks.
             const std::size_t taskCount = taskFnList.TaskList.size();
+            // is more tasks than threads?
+            const bool isMoreTasks = taskCount > NumThreads;
             // Tasks per thread.
-            const auto tempCount = (taskCount / NumThreads);
-            const std::size_t tasksPer = tempCount > 0 ? tempCount : 1;
-            const auto chunkedTasks = taskFnList.TaskList | std::ranges::views::chunk(tasksPer);
-            //std::cerr << typeid(chunkedTasks).name();
+            const auto chunkValue = isMoreTasks ? (taskCount / NumThreads) + 1 : 1;
+            const auto chunkedTasks = taskFnList.TaskList | std::ranges::views::chunk(chunkValue);
+            const auto threadCount = NumThreads;
 
             // Assert the count of chunks produced is less than equal the num threads...
-            assert(chunkedTasks.size() <= NumThreads);
+            assert(chunkedTasks.size() <= threadCount);
             // Set the new task lists...
             for(std::size_t i{}; i < chunkedTasks.size(); ++i)
             {
