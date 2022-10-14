@@ -37,7 +37,7 @@ void TestThreadPP()
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
 	imp::ThreadTaskSource tts;
 	// Push the capturing lambda.
-	tts.PushInfiniteTaskBack([&]()
+	tts.PushInfiniteTaskBack([=]()
 	{
 		*osp << "A ThreadUnitPlusPlus task is running...\n";
 		osp->emit();
@@ -56,7 +56,7 @@ void TestThreadPP()
 void TestPooler()
 {
 	static constexpr int TaskCount{ 5 };
-	static constexpr int ThreadCount{ 3 };
+	static constexpr int ThreadCount{ 10 };
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
 	imp::ThreadTaskSource tts;
 	// Push the capturing lambda.
