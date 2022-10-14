@@ -7,26 +7,8 @@
 #include "ThreadPooler.h"
 #include "ThreadUnitPlusPlus.h"
 
-void AddLotsOfTasks(auto &tc, std::size_t count, const bool addFirstTwo = true)
+void AddLotsOfTasks(auto &tc, const std::size_t count)
 {
-	if (addFirstTwo)
-	{
-		tc.PushInfiniteTaskBack([&]()
-			{
-				std::osyncstream os(std::cout);
-				//std::cout << "Infinite task is infinite...\n";
-				os << "Task #1 running...\n";
-				os.emit();
-				std::this_thread::sleep_for(std::chrono::milliseconds(750));
-			});
-		tc.PushInfiniteTaskBack([&]()
-			{
-				std::osyncstream os(std::cout);
-				os << "Task #2 running...\n";
-				os.emit();
-				std::this_thread::sleep_for(std::chrono::milliseconds(750));
-			});
-	}
 	for(size_t i = 0; i < count; i++)
 	{
 		tc.PushInfiniteTaskBack([&](auto taskNumber)
@@ -73,28 +55,32 @@ void TestThreadPP()
 
 void TestPooler()
 {
-	// here we begin by creating a ThreadPooler object,
-
-	std::shared_ptr<std::osyncstream> osp = std::make_shared<std::osyncstream>(std::cout);
-
+	static constexpr int TaskCount{ 5 };
+	static constexpr int ThreadCount{ 3 };
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
 	impcool::ThreadTaskSource tts;
 	// Push the capturing lambda.
 	tts.PushInfiniteTaskBack([&]()
 		{
-			*osp << "A ThreadPooler task is running...\n";
-			osp->emit();
+			std::osyncstream os(std::cout);
+			os << "A ThreadPooler task is running...\n";
+			os.emit();
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		});
+	AddLotsOfTasks(tts, TaskCount-1);
 
 	// Construct a thread pooler object
-	impcool::ThreadPooler<8> tpr;
+	impcool::ThreadPooler<ThreadCount> tpr;
 
-	// Reset aggregate task source
+	// Reset aggregate task source, this evenly apportions the tasks across the number of threads.
+	// If you want to specify which tasks go on which thread, you can access the task array directly.
+	// The 'thread unit' class is usable on it's own, and is exposed for use.
+	// i.e.,
+	// tpr.ThreadList[0].SetTaskSource(tts);
 	tpr.ResetInfiniteTaskArray(tts);
 
 	// Let the thread run the task until 'enter' is pressed.
-	*osp << "Press Enter to stop the test.\n";
+	std::cout << "Press Enter to stop the test.\n";
 	std::string buffer;
 	std::getline(std::cin, buffer);
 }
@@ -109,7 +95,6 @@ int main()
 		os << message;
 		os.emit();
 	};
-	static constexpr int TaskCount{ 5 };
 	std::string buffer;
 	//test thread unit
 	TestThreadPP();
