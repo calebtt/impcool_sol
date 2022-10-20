@@ -1,6 +1,3 @@
-// main.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include <iostream>
 #include <string>
 
@@ -51,6 +48,8 @@ void TestThreadPP()
 	*osp << "Press Enter to stop the test.\n";
 	std::string buffer;
 	std::getline(std::cin, buffer);
+	// Test resetting the task buffer.
+	tupp.SetTaskSource({});
 }
 
 void TestPooler()
@@ -85,6 +84,37 @@ void TestPooler()
 	std::getline(std::cin, buffer);
 }
 
+void TestBoolCvPackCopying()
+{
+	// Runs through all the copy/move ctors for BoolCvPack
+	auto getPack = []() { return imp::BoolCvPack{}; };
+	imp::BoolCvPack bcp, bcpOther;
+	bcp.UpdateState(true);
+	bcpOther = bcp;
+	assert(bcp.GetState());
+	assert(bcpOther.GetState());
+	bcp = getPack();
+	assert(!bcp.GetState());
+	imp::BoolCvPack crvRef{ bcpOther };
+	imp::BoolCvPack rvRef{ std::move(crvRef)};
+	assert(rvRef.GetState());
+}
+
+void TestThreadUnitMoving()
+{
+	// Construct a thread unit running a single task that does nothing
+	const auto sleepLam = []() { std::this_thread::sleep_for(std::chrono::seconds(1)); };
+	imp::ThreadUnitPlusPlus tupp{ {sleepLam} };
+	// move the thread unit into a newly created instance (test the move ctor)
+	imp::ThreadUnitPlusPlus tupp2{ std::move(tupp) };
+	// assert the moved thread is running.
+	assert(tupp2.IsRunning());
+	// test the move-assign constructor
+	const auto getRvalueRef = []() { return imp::ThreadUnitPlusPlus{}; };
+	imp::ThreadUnitPlusPlus tupp3 = getRvalueRef();
+	assert(tupp3.IsRunning());
+}
+
 //InfiniteThreadPool test
 int main()
 {
@@ -101,6 +131,12 @@ int main()
 
 	//test thread pool
 	TestPooler();
+
+	//test copying/moving of BoolCvPack
+	TestBoolCvPackCopying();
+
+	//test thread unit std::moving
+	TestThreadUnitMoving();
 
 	MultiPrint("\nEnter to exit...\n\n");
 	std::getline(std::cin, buffer);

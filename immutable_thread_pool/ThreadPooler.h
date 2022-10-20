@@ -1,11 +1,3 @@
-/*
- * ThreadPooler.h
- * A thread pool that utilizes the concept of immutability to
- * make implementation simpler. The task buffer is copied upon
- * thread creation and no shared data exists there.
- * Caleb T. Oct 12th, 2022
- * MIT license.
- */
 #pragma once
 #include <thread>
 #include <mutex>
@@ -32,7 +24,7 @@ namespace imp
     /// </summary>
     /// <remarks>
     /// Non-copyable.
-    /// Non-moveable.
+    /// <b> Is Moveable </b>
     /// </remarks>
     template<unsigned NumThreads = 4, IsThreadUnit ThreadProvider_t = imp::ThreadUnitPlusPlus>
     class ThreadPooler
@@ -46,7 +38,19 @@ namespace imp
         std::array<ThreadProvider_t, NumThreads> ThreadList{};
     public:
         ThreadPooler() = default;
-    public:
+        // Implemented moves.
+        ThreadPooler(ThreadPooler&& other) noexcept : ThreadList(std::move(other.ThreadList)) { }
+        ThreadPooler& operator=(ThreadPooler&& other) noexcept
+        {
+            if (this == &other)
+                return *this;
+            ThreadList = std::move(other.ThreadList);
+            return *this;
+        }
+        // Deleted copies.
+        ThreadPooler(const ThreadPooler& other) = delete;
+        ThreadPooler& operator=(const ThreadPooler& other) = delete;
+
         /// <summary> Blocking, destroys each thread (by joining) and resets their task list to empty before
         /// re-creation. </summary>
         void ClearAllTasks()

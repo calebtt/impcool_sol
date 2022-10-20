@@ -1,15 +1,4 @@
 #pragma once
-/*
- * ThreadUnitPlusPlus.h
- *
- * Helper class for working with a thread.
- * Fully functional stand-alone class to manage a single thread that has a task list
- * and supports operations such as create/destroy and pause/unpause.
- *
- * Caleb T. August 8th, 2022
- * MIT license.
- */
-#pragma once
 #include <thread>
 #include <mutex>
 #include <functional>
@@ -24,12 +13,12 @@
 
 namespace imp
 {
-    /// <summary> Class for working with a thread and task list.
+    /// <summary> Fully functional nearly stand-alone class to manage a single thread that has a task list.
     /// Manages running a thread pool thread. The thread can be paused, and destroyed.
-    /// The task list can be simply returned as it is not mutated in-use only copied, or counted.
+    /// The task list can be simply returned as it is not mutated while in use, only copied, or counted.
     /// A low-level granular kind of access is desirable here, if possible. </summary>
     /// <remarks> This class is also useable on it's own, if so desired. There are two mutually exclusive
-    /// pause conditions, each with their own setter function. </remarks>
+    /// pause conditions, each with their own setter function. Non-copyable, <b>is moveable! (move-construct and move-assign)</b></remarks>
     class ThreadUnitPlusPlus
     {
         /// <summary> Constant used to store the loop delay time period when no tasks are present. </summary>
@@ -71,7 +60,7 @@ namespace imp
         };
     private:
 
-        // Conditionals pack
+        // Pack of items used for pause/unpause/pause-complete "events".
         ThreadConditionals m_conditionalsPack;
 
         /// <summary> Smart pointer to the thread to be constructed. </summary>
@@ -84,21 +73,40 @@ namespace imp
         // Stop source for the thread
         std::stop_source m_stopSource{};
     public:
-
         /// <summary> Ctor creates the thread. </summary>
         ThreadUnitPlusPlus(const imp::ThreadTaskSource tasks = {})
         {
             m_taskList = tasks;
             CreateThread(m_taskList, false);
         }
-
         /// <summary> Dtor destroys the thread. </summary>
         ~ThreadUnitPlusPlus()
         {
             DestroyThread();
         }
-    public:
 
+        // Implemented move operations.
+        ThreadUnitPlusPlus(ThreadUnitPlusPlus&& other) noexcept
+	        : m_conditionalsPack(std::move(other.m_conditionalsPack)),
+	          m_workThreadObj(std::move(other.m_workThreadObj)),
+	          m_taskList(std::move(other.m_taskList)),
+	          m_stopSource(std::move(other.m_stopSource))
+        {
+        }
+        ThreadUnitPlusPlus& operator=(ThreadUnitPlusPlus&& other) noexcept
+        {
+            if (this == &other)
+                return *this;
+            m_conditionalsPack = std::move(other.m_conditionalsPack);
+            m_workThreadObj = std::move(other.m_workThreadObj);
+            m_taskList = std::move(other.m_taskList);
+            m_stopSource = std::move(other.m_stopSource);
+            return *this;
+        }
+        // Deleted copy operations.
+        ThreadUnitPlusPlus& operator=(const ThreadUnitPlusPlus& other) = delete;
+        ThreadUnitPlusPlus(const ThreadUnitPlusPlus& other) = delete;
+    public:
         /// <summary> Setting the pause value via this function will complete the in-process task list
         /// processing before pausing. </summary>
         /// <param name="enablePause"> true to enable pause, false to disable </param>
@@ -119,6 +127,7 @@ namespace imp
             m_conditionalsPack.UnorderedPausePack.UpdateState(enablePause);
         }
 
+        /// <summary> Generally if the thread is not running, there is an error state or it is destructing. </summary>
         [[nodiscard]] bool IsRunning() const
         {
             return m_workThreadObj != nullptr && !m_stopSource.stop_requested();

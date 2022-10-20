@@ -1,13 +1,4 @@
 #pragma once
-/*
- * BoolCvPack.h
- *
- * A pack of types used with a condition variable, and some helper functions to aid in
- * operating on them to perform a common task (WaitForFalse, WaitForTrue, get/update etc.)
- *
- * Caleb T. August 8th, 2022
- * MIT license.
- */
 #include <mutex>
 #include <atomic>
 #include <thread>
@@ -15,8 +6,9 @@
 
 namespace imp
 {
-    /// <summary> Pack of types used with a condition variable, and the functions
-    /// that operate on them. Default constructed object has is_condition_true set to false. </summary>
+    /// <summary> A pack of types used with a condition variable, and some helper functions to aid in
+    /// operating on them to perform a common task (WaitForFalse, WaitForTrue, get / update etc.) </summary>
+    /// <remarks> Default constructed object has is_condition_true set to false. Copyable, Movable. </remarks>
     struct BoolCvPack
     {
         // Some type aliases used in the condition variable packs, and possibly elsewhere.
@@ -29,33 +21,33 @@ namespace imp
         // Stop source can be used to cancel the wait operations.
         using StopSource_t = std::stop_source;
     public:
+        /// <summary> The shared data condition flag holding the notifiable state. </summary>
+        std::atomic<bool> is_condition_true{ false };
         /// <summary> A condition variables used to notify the work thread when "shared data" becomes false. </summary>
         CvConditionVar task_running_cv{};
         /// <summary> The mutex used for controlling access to updating the shared data conditions. </summary>
         std::mutex running_mutex{};
         // Stop source used to cancel the wait operations.
         StopSource_t stop_source{ std::nostopstate };
-        /// <summary> The shared data condition flag holding the notifiable state. </summary>
-        std::atomic<bool> is_condition_true{ false };
     public:
-        BoolCvPack() = default;
-        ~BoolCvPack() = default;
+        BoolCvPack() noexcept = default;
+        ~BoolCvPack() noexcept = default;
         BoolCvPack(const BoolCvPack& other)
         {
             stop_source = other.stop_source;
-	        is_condition_true.exchange(other.is_condition_true.load());
+	        is_condition_true.store(other.is_condition_true.load());
         }
         BoolCvPack(BoolCvPack&& other) noexcept
         {
             stop_source = other.stop_source;
-	        is_condition_true.exchange(other.is_condition_true);
+	        is_condition_true.store(other.is_condition_true.load());
         }
         BoolCvPack& operator=(const BoolCvPack& other)
         {
             if (this == &other)
                 return *this;
             stop_source = other.stop_source;
-            is_condition_true.exchange(other.is_condition_true.load());
+            is_condition_true.store(other.is_condition_true.load());
             return *this;
         }
         BoolCvPack& operator=(BoolCvPack&& other) noexcept
@@ -63,7 +55,7 @@ namespace imp
             if (this == &other)
                 return *this;
             stop_source = other.stop_source;
-            is_condition_true.exchange(other.is_condition_true);
+            is_condition_true.store(other.is_condition_true.load());
             return *this;
         }
     public:

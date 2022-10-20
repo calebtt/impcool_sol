@@ -1,20 +1,9 @@
 #pragma once
-/*
- * ThreadTaskSource.h
- *
- * ThreadTaskSource provides a container that holds async tasks, and some functions
- * for operating on it.
- *
- * Caleb T. Sept. 4th, 2022
- * MIT license.
- */
-
 #include <thread>
 #include <memory>
 #include <functional>
 #include <deque>
 #include <ranges>
-#include "ThreadConcepts.h"
 
 namespace imp
 {
@@ -42,6 +31,10 @@ namespace imp
         ThreadTaskSource(const IsFnRange auto &taskList)
         {
             TaskList = taskList;
+        }
+        ThreadTaskSource(const TaskInfo &&ti)
+        {
+            PushInfiniteTaskBack(ti);
         }
         /// <summary> Push a function with zero or more arguments, but no return value, into the task list. </summary>
         /// <typeparam name="F"> The type of the function. </typeparam>

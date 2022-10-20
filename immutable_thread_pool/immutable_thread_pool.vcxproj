@@ -137,7 +137,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BoolCvPack.h" />
-    <ClInclude Include="DataProtector.h" />
     <ClInclude Include="ThreadConcepts.h" />
     <ClInclude Include="ThreadPooler.h" />
     <ClInclude Include="ThreadTaskSource.h" />
