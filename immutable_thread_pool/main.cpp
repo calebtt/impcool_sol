@@ -3,6 +3,7 @@
 
 #include "ThreadPooler.h"
 #include "ThreadUnitPlusPlus.h"
+#include "BoolCvPack.h"
 
 void AddLotsOfTasks(auto &tc, const std::size_t count)
 {
