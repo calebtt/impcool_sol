@@ -46,6 +46,9 @@ namespace threadpooltests
 
 			// test call to wait that should do nothing...
 			tu.WaitForPauseCompleted();
+			// test pause completion status
+			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
+
 			// set both pause values
 			tu.SetPauseValueOrdered(true);
 			tu.SetPauseValueUnordered(true);
