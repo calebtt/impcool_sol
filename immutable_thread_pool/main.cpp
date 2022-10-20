@@ -111,7 +111,8 @@ void TestThreadUnitMoving()
 	assert(tupp2.IsRunning());
 	// test the move-assign constructor
 	const auto getRvalueRef = []() { return imp::ThreadUnitPlusPlus{}; };
-	imp::ThreadUnitPlusPlus tupp3 = getRvalueRef();
+	imp::ThreadUnitPlusPlus tupp3;
+	tupp3 = std::move(tupp2);
 	assert(tupp3.IsRunning());
 }
 
