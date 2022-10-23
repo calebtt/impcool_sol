@@ -34,6 +34,23 @@ void TestThreadPP()
 
 	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
 	imp::ThreadTaskSource tts;
+
+	// Also note that a lambda function actually expands to a callable struct with the capture-clause items as data members.
+	// So the lambda below might look like (see below) and then the std::function's type-erasure will keep alive the lambda
+	// data members (including the std::shared_ptr). But they *MUST* be captured by value for that to work!
+
+	//struct AnonymousLambda
+	//{
+	//	std::shared_ptr<std::osyncstream> osp;
+	//	void operator()()
+	//	{
+	//		*osp << "A ThreadUnitPlusPlus task is running...\n";
+	//		osp->emit();
+	//		std::this_thread::sleep_for(std::chrono::seconds(1));
+	//	}
+	//};
+
+
 	// Push the capturing lambda.
 	tts.PushInfiniteTaskBack([=]()
 	{
