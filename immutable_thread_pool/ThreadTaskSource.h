@@ -46,11 +46,11 @@ namespace imp
         {
             if constexpr (sizeof...(args) == 0)
             {
-                TaskList.emplace_back(std::function<void()>{taskFn});
+                TaskList.emplace_back(TaskInfo{taskFn});
             }
             else
             {
-                TaskList.emplace_back(std::function<void()>([taskFn, args...] { taskFn(args...); }));
+                TaskList.emplace_back(TaskInfo([taskFn, args...] { taskFn(args...); }));
             }
         }
 
@@ -64,11 +64,11 @@ namespace imp
         {
             if constexpr (sizeof...(args) == 0)
             {
-                TaskList.emplace_front(std::function<void()>{task});
+                TaskList.emplace_front(TaskInfo{task});
             }
             else
             {
-                TaskList.emplace_front(std::function<void()>([task, args...] { task(args...); }));
+                TaskList.emplace_front(TaskInfo([task, args...] { task(args...); }));
             }
         }
 
