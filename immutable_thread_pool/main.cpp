@@ -5,7 +5,7 @@
 #include <future>
 #include <atomic>
 #include <condition_variable>
-
+#include <thread>
 
 //void AddLotsOfTasks(auto &tc, const std::size_t count)
 //{
@@ -24,15 +24,24 @@
 
 namespace AsyncUtil
 {
-	using AsyncStopRequested = std::atomic<bool>;
+	class AsyncStopper
+	{
+		std::shared_ptr<std::atomic<bool>> stopValue{ std::make_shared<std::atomic<bool>>(false) };
+	public:
+		[[nodiscard]]
+		auto IsStopRequested() const noexcept -> bool
+		{
+			return *stopValue;
+		}
+		auto SetStopValue(const bool isRequested) const noexcept
+		{
+			*stopValue = isRequested;
+		}
+	};
 
 	struct PausableAsync
 	{
-	public:
-		//TODO make this work, a shared_ptr to just an atomic seems a bit heavy,
-		//but it's probably worth it just to avoid leaking the memory accidentally,
-		//plus this pausable can manage it's own lifetime now, somewhat.
-		std::shared_ptr<AsyncStopRequested> stopper;
+		AsyncStopper stopper;
 		std::shared_future<void> taskFuture;
 	};
 
@@ -47,22 +56,22 @@ namespace AsyncUtil
 	/// <param name="taskFn"> The function to push. </param>
 	/// <param name="args"> The arguments to pass to the function (by value). </param>
 	template <typename F, typename... A>
-	auto make_pausable_task(const AsyncStopRequested& stopToken, const F& taskFn, const A&... args)
+	auto make_pausable_task(const AsyncStopper& stopToken, const F& taskFn, const A&... args)
 	{
 		if constexpr (sizeof...(args) == 0)
 		{
-			return std::function<void()>{[&stopToken, taskFn]()
+			return std::function<void()>{[stopToken, taskFn]()
 			{
-					if (stopToken)
+					if (stopToken.IsStopRequested())
 						return;
 					taskFn();
 			} };
 		}
 		else
 		{
-			return std::function<void()>{[&stopToken, taskFn, args...]()
+			return std::function<void()>{[stopToken, taskFn, args...]()
 			{
-					if (stopToken)
+					if (stopToken.IsStopRequested())
 						return;
 					taskFn(args...);
 			} };
@@ -70,13 +79,14 @@ namespace AsyncUtil
 	}
 
 	/// <summary>
-	///	Takes a range of pause-able tasks and returns a single std::function<void()> that calls them
-	///	in succession.
+	///	Takes a range of pause-able tasks and returns a single std::function that calls them
+	///	in succession. The range of functions is copied into the lambda.
 	/// </summary>
-	auto make_async_runnable_package(const auto& taskList)
+	template<class FnRange_t>
+	auto make_async_runnable_package(const FnRange_t &taskList)
 	{
 		return std::function<void()>
-		{[&]()
+		{[taskList]()
 			{
 				for (const auto& elem : taskList)
 				{
@@ -94,38 +104,51 @@ namespace AsyncUtil
 	/// <param name="task"></param>
 	/// <param name="launchPolicy"></param>
 	/// <returns></returns>
-	auto start_stoppable_async(AsyncStopRequested& stopToken, const auto& task, std::launch launchPolicy = std::launch::async)
+	template<typename Fn_t>
+	auto start_stoppable_async(const AsyncStopper &stopToken, const Fn_t& task, std::launch launchPolicy = std::launch::async)
 		-> PausableAsync
 	{
-		return PausableAsync{.stopper = &stopToken, .taskFuture = std::async(launchPolicy, task).share()};
+		return PausableAsync{stopToken, std::async(launchPolicy, task).share()};
 	}
 }
 
-//InfiniteThreadPool test
-int main()
+auto test_async_pool() -> AsyncUtil::PausableAsync
 {
 	using namespace AsyncUtil;
+	// Stopper handle.
+	AsyncUtil::AsyncStopper st;
+
+	// lambda performing some work
 	const auto taskCounterFn = [](const int n)
 	{
 		std::cout << "Task " << n << " running...\n";
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		std::cout << "Task " << n << " finished...\n";
 	};
-
-	AsyncStopRequested st{ false };
-	const std::vector taskList
+	const std::vector<std::function<void()>> taskList
 	{
 		make_pausable_task(st, taskCounterFn, 1),
 		make_pausable_task(st, taskCounterFn, 2),
 		make_pausable_task(st, taskCounterFn, 3)
 	};
+	// Vector of tasks packaged into one std function.
 	auto asyncPackage = make_async_runnable_package(taskList);
-	auto futurePackage = start_stoppable_async(st, asyncPackage);
+	auto asyncPackageHandle = start_stoppable_async(st, asyncPackage);
+	return asyncPackageHandle;
+}
+
+//InfiniteThreadPool test
+int main()
+{
+	// Get handle for async work being performed.
+	auto stopHandle = test_async_pool();
+	// Request stop after 1 second of running.
 	std::this_thread::sleep_for(std::chrono::seconds(1));
-	*futurePackage.stopper = true;
+	stopHandle.stopper.SetStopValue(true);
+	// Wait for the pool task to finish.
+	stopHandle.taskFuture.wait();
 
-	futurePackage.taskFuture.wait();
-
+	// Exit app
 	std::cout << "\nEnter to exit...\n\n";
 	std::string buffer;
 	std::getline(std::cin, buffer);
