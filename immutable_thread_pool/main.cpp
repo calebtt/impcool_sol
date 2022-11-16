@@ -112,6 +112,7 @@ auto test_async_pool() -> AsyncUtil::PausableAsync
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		std::cout << "Task " << n << " finished...\n";
 	};
+	// 3. Turn them into stoppable tasks.
 	const std::vector<std::function<void()>> taskList
 	{
 		make_pausable_task(st, taskCounterFn, 1),
@@ -119,11 +120,11 @@ auto test_async_pool() -> AsyncUtil::PausableAsync
 		make_pausable_task(st, taskCounterFn, 3)
 	};
 
-	// 3. Make the Vector of tasks packaged into one std function.
+	// 4. Make the Vector of tasks packaged into one std function.
 	auto asyncPackage = make_async_runnable_package(taskList);
-	// 4. Start the stoppable async task, via the std async thread pool.
+	// 5. Start the stoppable async task, via the std async thread pool.
 	auto asyncPackageHandle = start_stoppable_async(st, asyncPackage);
-	// 5. Return the handle for cancellation when preferred.
+	// 6. Return the handle for cancellation when preferred.
 	return asyncPackageHandle;
 }
 
