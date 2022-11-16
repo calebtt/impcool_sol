@@ -7,21 +7,6 @@
 #include <condition_variable>
 #include <thread>
 
-//void AddLotsOfTasks(auto &tc, const std::size_t count)
-//{
-//	for(size_t i = 0; i < count; i++)
-//	{
-//		tc.PushInfiniteTaskBack([&](auto taskNumber)
-//			{
-//				std::osyncstream os(std::cout);
-//				os << "Task with args: [" << taskNumber << "] running...\n";
-//				os.emit();
-//				std::this_thread::sleep_for(std::chrono::milliseconds(250));
-//			}, i);
-//	}
-//}
-//
-
 namespace AsyncUtil
 {
 	class AsyncStopper
@@ -115,9 +100,11 @@ namespace AsyncUtil
 auto test_async_pool() -> AsyncUtil::PausableAsync
 {
 	using namespace AsyncUtil;
-	// Stopper handle.
+
+	// 1. Create a stopper handle.
 	AsyncUtil::AsyncStopper st;
 
+	// 2. Have some tasks to perform.
 	// lambda performing some work
 	const auto taskCounterFn = [](const int n)
 	{
@@ -131,9 +118,12 @@ auto test_async_pool() -> AsyncUtil::PausableAsync
 		make_pausable_task(st, taskCounterFn, 2),
 		make_pausable_task(st, taskCounterFn, 3)
 	};
-	// Vector of tasks packaged into one std function.
+
+	// 3. Make the Vector of tasks packaged into one std function.
 	auto asyncPackage = make_async_runnable_package(taskList);
+	// 4. Start the stoppable async task, via the std async thread pool.
 	auto asyncPackageHandle = start_stoppable_async(st, asyncPackage);
+	// 5. Return the handle for cancellation when preferred.
 	return asyncPackageHandle;
 }
 
