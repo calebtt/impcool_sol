@@ -88,7 +88,7 @@ namespace imp
         /// <summary> Called to update the shared state variable. Notifies all waiting threads
         /// to wake up and perform their wait check. </summary>
         /// <param name="trueOrEnabled"> true to enable, presumably. </param>
-        void UpdateState(const bool trueOrEnabled)
+        void UpdateState(const bool trueOrEnabled) noexcept
         {
             {
                 SetterLock_t setter_lock{ running_mutex };

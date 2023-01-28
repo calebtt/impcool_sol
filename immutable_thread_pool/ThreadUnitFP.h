@@ -8,30 +8,69 @@
 #include <syncstream>
 #include <memory>
 #include <deque>
+#include <optional>
+#include <variant>
 #include "ThreadTaskSource.h"
 #include "BoolCvPack.h"
 
 namespace imp
 {
-    /// <summary> Fully functional nearly stand-alone class to manage a single thread that has a task list.
-    /// Manages running a thread pool thread. The thread can be paused, and destroyed.
-    /// The task list can be simply returned as it is not mutated while in use, only copied, or counted.
-    /// A low-level granular kind of access is desirable here, if possible. </summary>
-    /// <remarks> This class is also useable on it's own, if so desired. There are two mutually exclusive
-    /// pause conditions, each with their own setter function. Non-copyable, <b>is moveable! (move-construct and move-assign)</b></remarks>
-    class ThreadUnitPlusPlus
+    namespace pause
+	{
+        // A couple types for the variant (still better than an enum)
+        struct OrderedPause_t
+        {
+            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
+            {
+                orderedState.UpdateState(true);
+                unorderedState.UpdateState(false);
+            }
+        };
+        struct UnorderedPause_t
+        {
+            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
+            {
+                unorderedState.UpdateState(true);
+                orderedState.UpdateState(false);
+            }
+        };
+        struct NeitherPause_t
+        {
+            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
+            {
+                orderedState.UpdateState(false);
+                unorderedState.UpdateState(false);
+            }
+        };
+    }
+
+    // Responsibiliity is the thread only
+    struct ThreadContext_t
     {
+        using Thread_t = std::jthread;
+        using UniquePtrThread_t = std::unique_ptr<Thread_t>;
+        UniquePtrThread_t workThreadObj;
+        std::stop_source stopSource;
+    };
+
+    /// <summary> Fully functional nearly stand-alone class to manage a single thread that has a task list. Manages running a single thread pool
+    /// thread. The thread can be paused, and destroyed. The task list can be simply returned as it is not mutated while in use, only copied,
+    /// or counted. A low-level granular kind of access is desirable here, if possible. </summary>
+    /// <remarks> This class is useable on it's own. There are two mutually exclusive pause conditions, each with their own setter function.
+    /// Non-copyable, <b>is moveable! (move-construct and move-assign)</b></remarks>
+    class ThreadUnitFP
+    {
+    private:
         /// <summary> Constant used to store the loop delay time period when no tasks are present. </summary>
         static constexpr std::chrono::milliseconds EmptyWaitTime{ std::chrono::milliseconds(20) };
     public:
         using Thread_t = std::jthread;
         using AtomicBool_t = std::atomic<bool>;
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
-
         // Alias for the ThreadTaskSource which provides a container and some operations.
         using TaskOpsProvider_t = imp::ThreadTaskSource;
         using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
-
+        using PauseMethod_t = std::variant<pause::OrderedPause_t, pause::UnorderedPause_t, pause::NeitherPause_t>;
     private:
         struct ThreadConditionals
         {
@@ -59,7 +98,6 @@ namespace imp
             }
         };
     private:
-
         // Pack of items used for pause/unpause/pause-complete "events".
         ThreadConditionals m_conditionalsPack;
 
@@ -74,26 +112,27 @@ namespace imp
         std::stop_source m_stopSource{};
     public:
         /// <summary> Ctor creates the thread. </summary>
-        ThreadUnitPlusPlus(const imp::ThreadTaskSource tasks = {})
+        ThreadUnitFP(const imp::ThreadTaskSource tasks = {}) noexcept
         {
             m_taskList = tasks;
             CreateThread(m_taskList, false);
         }
-        /// <summary> Dtor destroys the thread. </summary>
-        ~ThreadUnitPlusPlus()
+
+    	/// <summary> Dtor destroys the thread. </summary>
+        ~ThreadUnitFP()
         {
             DestroyThread();
         }
 
         // Implemented move operations.
-        ThreadUnitPlusPlus(ThreadUnitPlusPlus&& other) noexcept
+        ThreadUnitFP(ThreadUnitFP&& other) noexcept
 	        : m_conditionalsPack(std::move(other.m_conditionalsPack)),
 	          m_workThreadObj(std::move(other.m_workThreadObj)),
 	          m_taskList(std::move(other.m_taskList)),
 	          m_stopSource(std::move(other.m_stopSource))
         {
         }
-        ThreadUnitPlusPlus& operator=(ThreadUnitPlusPlus&& other) noexcept
+        ThreadUnitFP& operator=(ThreadUnitFP&& other) noexcept
         {
             if (this == &other)
                 return *this;
@@ -104,31 +143,20 @@ namespace imp
             return *this;
         }
         // Deleted copy operations.
-        ThreadUnitPlusPlus& operator=(const ThreadUnitPlusPlus& other) = delete;
-        ThreadUnitPlusPlus(const ThreadUnitPlusPlus& other) = delete;
+        ThreadUnitFP& operator=(const ThreadUnitFP& other) = delete;
+        ThreadUnitFP(const ThreadUnitFP& other) = delete;
     public:
-        /// <summary> Setting the pause value via this function will complete the in-process task list
-        /// processing before pausing. </summary>
-        /// <param name="enablePause"> true to enable pause, false to disable </param>
-        /// <remarks><b>Note:</b> The two different pause states (for <c>true</c> value) are mutually exclusive! Only one may be set at a time. </remarks>
-        void SetPauseValueOrdered(const bool enablePause)
+        auto SetPauseValue(PauseMethod_t pauseMethod)
         {
-            m_conditionalsPack.OrderedPausePack.UpdateState(enablePause);
-        }
-
-        /// <summary>
-        /// Setting the pause value via this function will complete only the in-process task before pausing
-        /// mid-way in the list, if not at the end.
-        /// </summary>
-        /// <param name="enablePause"> true to enable pause, false to disable </param>
-        /// <remarks><b>Note:</b> The two different pause states (for <c>true</c> value) are mutually exclusive! Only one may be set at a time. </remarks>
-        void SetPauseValueUnordered(const bool enablePause)
-        {
-            m_conditionalsPack.UnorderedPausePack.UpdateState(enablePause);
+            // The generic lambda here generates the overload for the specific type held by pauseMethod,
+            // and with the type, calls the call operator with the ordered and unordered pause conditionals packs
+            // in order to perform the appropriate operation for setting/unsetting the pause value.
+            std::visit([&](auto& v) { v(m_conditionalsPack.OrderedPausePack, m_conditionalsPack.UnorderedPausePack); }, pauseMethod );
         }
 
         /// <summary> Generally if the thread is not running, there is an error state or it is destructing. </summary>
-        [[nodiscard]] bool IsRunning() const
+        [[nodiscard]]
+    	bool IsRunning() const
         {
             return m_workThreadObj != nullptr && !m_stopSource.stop_requested();
         }
@@ -161,20 +189,22 @@ namespace imp
         }
 
         /// <summary> Returns the number of tasks running on the thread task list.</summary>
-        [[nodiscard]] std::size_t GetNumberOfTasks() const
+        [[nodiscard]]
+    	std::size_t GetNumberOfTasks() const
         {
             return m_taskList.TaskList.size();
         }
 
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
         /// the tasks running on the thread. </summary>
-        [[nodiscard]] auto GetTaskSource() const
+        [[nodiscard]]
+    	auto GetTaskSource() const
         {
             return m_taskList;
         }
 
         /// <summary> Stops the thread, replaces the task list, creates the thread again. </summary>
-        void SetTaskSource(const ThreadTaskSource newTaskList)
+        void SetTaskSource(ThreadTaskSource newTaskList)
         {
             StartDestruction();
             WaitForDestruction();
@@ -182,19 +212,10 @@ namespace imp
             CreateThread(newTaskList);
         }
 
-        /// <summary> Destructs the running thread after it finishes running the current task it's on
-        /// within the task list. Marks the thread func to stop then joins and waits for it to return. </summary>
-        /// <remarks><b>WILL CLEAR the task source!</b> To start the thread again, just set a new task source.</remarks>
-        void DestroyThread()
-        {
-            StartDestruction();
-            WaitForDestruction();
-            m_taskList.TaskList = {};
-        }
     private:
-        /// <summary> Starts the work thread running, to execute each task in the list infinitely. </summary>
+    	/// <summary> Starts the work thread running, to execute each task in the list infinitely. </summary>
         /// <returns> true on thread created, false otherwise (usually thread already created). </returns>
-        bool CreateThread(const ThreadTaskSource tasks, const bool isPausedOnStart = false)
+        bool CreateThread(const ThreadTaskSource tasks, const bool isPausedOnStart = false) noexcept
         {
             if (m_workThreadObj == nullptr)
             {
@@ -211,6 +232,16 @@ namespace imp
                 return true;
             }
             return false;
+        }
+
+        /// <summary> Destructs the running thread after it finishes running the current task it's on
+        /// within the task list. Marks the thread func to stop then joins and waits for it to return. </summary>
+        /// <remarks><b>WILL CLEAR the task source!</b> To start the thread again, just set a new task source.</remarks>
+        void DestroyThread()
+        {
+            StartDestruction();
+            WaitForDestruction();
+            m_taskList.TaskList = {};
         }
 
         /// <summary> Changes stop requested to true... </summary>
