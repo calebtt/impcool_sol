@@ -33,7 +33,7 @@ namespace threadpooltests
 		TEST_METHOD(TestTUCreate)
 		{
 			ThreadUnit_t tu{};
-			Assert::IsTrue(tu.IsRunning());
+			Assert::IsFalse(tu.IsWorking());
 			const auto numTasks = tu.GetNumberOfTasks();
 			const std::string smsg = std::format("Num Tasks: {}", numTasks);
 			const std::wstring wmsg{std::begin(smsg), std::end(smsg)};
@@ -47,7 +47,7 @@ namespace threadpooltests
 			TaskSource_t tts{};
 			ThreadUnit_t tu{};
 
-			Assert::IsTrue(tu.IsRunning());
+			Assert::IsFalse(tu.IsWorking());
 
 			// test pause completion status
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
@@ -58,21 +58,18 @@ namespace threadpooltests
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
 
 			// set both pause values
-			tu.SetPauseValue(imp::pause::OrderedPause_t{});
-			tu.SetPauseValue(imp::pause::UnorderedPause_t{});
+			tu.SetOrderedPause();
+			tu.SetUnorderedPause();
 			// wait
 			tu.WaitForPauseCompleted();
 			// test pause completion status
 			Assert::IsTrue(tu.GetPauseCompletionStatus(), L"Paused reported as uncompleted incorrectly.");
-			// destroy while paused...
-			//tu.DestroyThread();
+			tu.SetTaskSource({});
 			// test pause completion status
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
-			// destroy again
-			//tu.DestroyThread();
 			// create a new thread
 			tu.SetTaskSource({});
-			Assert::IsTrue(tu.IsRunning(), L"Thread not created when it should be.");
+			Assert::IsFalse(tu.IsWorking(), L"Thread performing work when it shouldn't be.");
 			AddLotsOfTasks(tts, TaskCount);
 			tu.SetTaskSource(tts);
 			// test task count is correct
@@ -88,18 +85,18 @@ namespace threadpooltests
 			TaskSource_t tts{};
 
 			AddLotsOfTasks(tts, TaskCount);
-
-			ThreadUnit_t tu{ tts };
-			for (int i = 0; i < TaskCount; ++i) {
-				Assert::IsTrue(tu.IsRunning());
+			
+			for (std::size_t i = 0; i < TaskCount; ++i) 
+			{
+				ThreadUnit_t tu{ tts };
+				Assert::IsTrue(tu.IsWorking());
 				Assert::IsTrue(tu.GetNumberOfTasks() == TaskCount);
 				std::this_thread::sleep_for(500ms);
-				tu.SetPauseValue(imp::pause::OrderedPause_t{});
+				tu.SetUnorderedPause();
 				std::this_thread::sleep_for(500ms);
 				tu.WaitForPauseCompleted();
 				Assert::IsTrue(tu.GetPauseCompletionStatus());
-				tu.SetPauseValue(imp::pause::NeitherPause_t{});
-				//tu.DestroyThread();
+				tu.Unpause();
 			}
 		}
 	};

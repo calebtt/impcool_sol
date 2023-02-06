@@ -29,10 +29,10 @@
     <ClInclude Include="ThreadConcepts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ThreadPooler.h">
+    <ClInclude Include="ThreadUnitFP.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ThreadUnitPlusPlus.h">
+    <ClInclude Include="ThreadConditionals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

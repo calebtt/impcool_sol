@@ -7,7 +7,7 @@
 
 void AddLotsOfTasks(auto &tc, const std::size_t count)
 {
-	for(size_t i = 0; i < count; i++)
+	for(std::size_t i = 0; i < count; ++i)
 	{
 		tc.PushInfiniteTaskBack([&](auto taskNumber)
 			{
@@ -19,7 +19,7 @@ void AddLotsOfTasks(auto &tc, const std::size_t count)
 	}
 }
 
-// Test of the ThreadUnitPlusPlus new paradigm
+// Test of the ThreadUnitFP "new paradigm"
 void TestThreadPP()
 {
 	using ThreadUnit_t = imp::ThreadUnitFP;
@@ -54,19 +54,20 @@ void TestThreadPP()
 
 
 	// Push the capturing lambda.
-	tts.PushInfiniteTaskBack([=]()
+	tts.PushInfiniteTaskBack([outStream = osp]()
 	{
+		using namespace std::chrono_literals;
 		const auto tname = typeid(ThreadUnit_t).name();
-		*osp << "A "<< tname << " task is running...\n";
-		osp->emit();
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		*outStream << "A "<< tname << " task is running...\n";
+		outStream->emit();
+		std::this_thread::sleep_for(1s);
 	});
 
+	*osp << "Press Enter to stop the test.\n";
 	// Construct the thread unit object, pass our constructed task source object.
 	ThreadUnit_t tupp(tts);
 
 	// Let the thread run the task until 'enter' is pressed.
-	*osp << "Press Enter to stop the test.\n";
 	std::string buffer;
 	std::getline(std::cin, buffer);
 	// Test resetting the task buffer.
@@ -77,16 +78,27 @@ void TestBoolCvPackCopying()
 {
 	using Bcp_t = imp::BoolCvPack;
 	// Runs through all the copy/move ctors for BoolCvPack
-	auto getPack = []() { return Bcp_t{}; };
+	auto getPack = []() -> auto
+	{
+		return std::move(Bcp_t{});
+	};
 	Bcp_t bcp;
 	Bcp_t bcpOther;
 	bcp.UpdateState(true);
+
+	// Test operator-assign
 	bcpOther = bcp;
 	assert(bcp.GetState());
 	assert(bcpOther.GetState());
+	
+	// Test move-assign
 	bcp = getPack();
 	assert(!bcp.GetState());
+
+	// Test copy-construct
 	Bcp_t crvRef{ bcpOther };
+
+	// Test move-construct
 	Bcp_t rvRef{ std::move(crvRef)};
 	assert(rvRef.GetState());
 }
@@ -94,19 +106,20 @@ void TestBoolCvPackCopying()
 void TestThreadUnitMoving()
 {
 	using ThreadUnit_t = imp::ThreadUnitFP;
-	using TaskSource_t = imp::ThreadTaskSource;
 	// Construct a thread unit running a single task that does nothing
 	const auto sleepLam = []() { std::this_thread::sleep_for(std::chrono::seconds(1)); };
 	ThreadUnit_t tupp{ {sleepLam} };
-	// move the thread unit into a newly created instance (test the move ctor)
+
+	// move the thread unit into a newly created instance
+	// Test move-construct
 	ThreadUnit_t tupp2{ std::move(tupp) };
 	// assert the moved thread is running.
-	assert(tupp2.IsRunning());
+	assert(tupp2.IsWorking());
+
 	// test the move-assign constructor
-	//const auto getRvalueRef = []() { return std::move(ThreadUnit_t{}); };
 	ThreadUnit_t tupp3;
 	tupp3 = std::move(tupp2);
-	assert(tupp3.IsRunning());
+	assert(tupp3.IsWorking());
 }
 
 //InfiniteThreadPool test
@@ -119,7 +132,6 @@ int main()
 		os << message;
 		os.emit();
 	};
-	std::string buffer;
 	//test thread unit
 	TestThreadPP();
 
@@ -130,5 +142,6 @@ int main()
 	TestThreadUnitMoving();
 
 	MultiPrint("\nEnter to exit...\n\n");
+	std::string buffer;
 	std::getline(std::cin, buffer);
 }

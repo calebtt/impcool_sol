@@ -11,6 +11,7 @@ namespace imp
     /// <remarks> Default constructed object has is_condition_true set to false. Copyable, Movable. </remarks>
     struct BoolCvPack
     {
+        static constexpr bool DoDebugLog{ false };
         // Some type aliases used in the condition variable packs, and possibly elsewhere.
         // alias for std::condition_variable type
         using CvConditionVar = std::condition_variable;
@@ -32,18 +33,30 @@ namespace imp
     public:
         BoolCvPack() noexcept = default;
         ~BoolCvPack() noexcept = default;
-        BoolCvPack(const BoolCvPack& other)
+        BoolCvPack(const BoolCvPack& other) noexcept
         {
+            if constexpr (DoDebugLog)
+            {
+                std::cerr << "BoolCvPack copy-construct\n";
+            }
             stop_source = other.stop_source;
 	        is_condition_true.store(other.is_condition_true.load());
         }
         BoolCvPack(BoolCvPack&& other) noexcept
         {
+            if constexpr (DoDebugLog)
+            {
+                std::cerr << "BoolCvPack move-construct\n";
+            }
             stop_source = other.stop_source;
 	        is_condition_true.store(other.is_condition_true.load());
         }
-        BoolCvPack& operator=(const BoolCvPack& other)
+        BoolCvPack& operator=(const BoolCvPack& other) noexcept
         {
+            if constexpr (DoDebugLog)
+            {
+                std::cerr << "BoolCvPack operator-assign\n";
+            }
             if (this == &other)
                 return *this;
             stop_source = other.stop_source;
@@ -52,6 +65,10 @@ namespace imp
         }
         BoolCvPack& operator=(BoolCvPack&& other) noexcept
         {
+            if constexpr (DoDebugLog)
+            {
+                std::cerr << "BoolCvPack move-assign\n";
+            }
             if (this == &other)
                 return *this;
             stop_source = other.stop_source;
@@ -63,7 +80,7 @@ namespace imp
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
         /// <c>"notify_all()"</c>. Without the notify from another thread, it would basically be a <b>deadlock</b>. </summary>
-        void WaitForFalse()
+        void WaitForFalse() noexcept
         {
             WaiterLock_t pause_lock(running_mutex);
             task_running_cv.wait(pause_lock, [&]() -> bool
@@ -76,7 +93,7 @@ namespace imp
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
         /// <c>"notify_all()"</c>. Without the notify from another thread, it would basically be a <b>deadlock</b>. </summary>
-        void WaitForTrue()
+        void WaitForTrue() noexcept
         {
             WaiterLock_t pause_lock{ running_mutex };
             task_running_cv.wait(pause_lock, [&]() -> bool
@@ -100,7 +117,7 @@ namespace imp
         /// It is not necessary to follow the <c>condition_variable</c> procedure just to
         /// check this value, nor lock the mutex since it's an atomic. </summary>
         /// <returns>bool value of the SharedData</returns>
-        bool GetState() const
+        bool GetState() const noexcept
         {
             return is_condition_true;
         }

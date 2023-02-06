@@ -12,55 +12,20 @@
 #include <variant>
 #include "ThreadTaskSource.h"
 #include "BoolCvPack.h"
+#include "ThreadConditionals.h"
 
 namespace imp
 {
-    namespace pause
-	{
-        // A couple types for the variant (still better than an enum)
-        struct OrderedPause_t
-        {
-            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
-            {
-                orderedState.UpdateState(true);
-                unorderedState.UpdateState(false);
-            }
-        };
-        struct UnorderedPause_t
-        {
-            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
-            {
-                unorderedState.UpdateState(true);
-                orderedState.UpdateState(false);
-            }
-        };
-        struct NeitherPause_t
-        {
-            void operator()([[maybe_unused]] BoolCvPack& orderedState, [[maybe_unused]] BoolCvPack& unorderedState) const noexcept
-            {
-                orderedState.UpdateState(false);
-                unorderedState.UpdateState(false);
-            }
-        };
-    }
-
-    // Responsibiliity is the thread only
-    struct ThreadContext_t
-    {
-        using Thread_t = std::jthread;
-        using UniquePtrThread_t = std::unique_ptr<Thread_t>;
-        UniquePtrThread_t workThreadObj;
-        std::stop_source stopSource;
-    };
-
-    /// <summary> Fully functional nearly stand-alone class to manage a single thread that has a task list. Manages running a single thread pool
-    /// thread. The thread can be paused, and destroyed. The task list can be simply returned as it is not mutated while in use, only copied,
+    /// <summary> class to manage a single thread that has a task list. Manages running a single thread.
+    /// The thread can be paused, and unpaused. 
+    /// The task list can be simply replaced as it is not mutated while in use, only copied,
     /// or counted. A low-level granular kind of access is desirable here, if possible. </summary>
-    /// <remarks> This class is useable on it's own. There are two mutually exclusive pause conditions, each with their own setter function.
+    /// <remarks> There are two pause conditions, each with their own setter function.
     /// Non-copyable, <b>is moveable! (move-construct and move-assign)</b></remarks>
     class ThreadUnitFP
     {
     private:
+        static constexpr bool UseUnorderedDestruction{ true };
         /// <summary> Constant used to store the loop delay time period when no tasks are present. </summary>
         static constexpr std::chrono::milliseconds EmptyWaitTime{ std::chrono::milliseconds(20) };
     public:
@@ -70,46 +35,20 @@ namespace imp
         // Alias for the ThreadTaskSource which provides a container and some operations.
         using TaskOpsProvider_t = imp::ThreadTaskSource;
         using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
-        using PauseMethod_t = std::variant<pause::OrderedPause_t, pause::UnorderedPause_t, pause::NeitherPause_t>;
+        using Conditionals_t = imp::pause::ThreadConditionals;
     private:
-        struct ThreadConditionals
-        {
-	        imp::BoolCvPack OrderedPausePack;
-	        imp::BoolCvPack UnorderedPausePack;
-	        imp::BoolCvPack PauseCompletedPack;
-            //BoolCvPack isStopRequested;
-            // Waits for both pause requests to be false.
-            void WaitForBothPauseRequestsFalse()
-            {
-                OrderedPausePack.WaitForFalse();
-                UnorderedPausePack.WaitForFalse();
-            }
-            void Notify()
-            {
-                OrderedPausePack.task_running_cv.notify_all();
-                UnorderedPausePack.task_running_cv.notify_all();
-                PauseCompletedPack.task_running_cv.notify_all();
-            }
-            void SetStopSource(const std::stop_source sts)
-            {
-                PauseCompletedPack.stop_source = sts;
-                OrderedPausePack.stop_source = sts;
-                UnorderedPausePack.stop_source = sts;
-            }
-        };
-    private:
-        // Pack of items used for pause/unpause/pause-complete "events".
-        ThreadConditionals m_conditionalsPack;
-
-        /// <summary> Smart pointer to the thread to be constructed. </summary>
-        UniquePtrThread_t m_workThreadObj{};
-
         /// <summary> Copy of the last list of tasks to be set to run on this work thread.
         /// Should mirror the list of tasks that the worker thread is using. </summary>
         TaskOpsProvider_t m_taskList{};
 
         // Stop source for the thread
         std::stop_source m_stopSource{};
+
+        // Pack of items used for pause/unpause/pause-complete "events".
+        Conditionals_t m_conditionalsPack{ m_stopSource };
+
+        /// <summary> Smart pointer to the thread to be constructed. </summary>
+        UniquePtrThread_t m_workThreadObj{};
     public:
         /// <summary> Ctor creates the thread. </summary>
         ThreadUnitFP(const imp::ThreadTaskSource tasks = {}) noexcept
@@ -119,18 +58,18 @@ namespace imp
         }
 
     	/// <summary> Dtor destroys the thread. </summary>
-        ~ThreadUnitFP()
+        ~ThreadUnitFP() noexcept
         {
             DestroyThread();
         }
 
         // Implemented move operations.
         ThreadUnitFP(ThreadUnitFP&& other) noexcept
-	        : m_conditionalsPack(std::move(other.m_conditionalsPack)),
-	          m_workThreadObj(std::move(other.m_workThreadObj)),
-	          m_taskList(std::move(other.m_taskList)),
-	          m_stopSource(std::move(other.m_stopSource))
-        {
+	        : m_taskList(std::move(other.m_taskList)),
+	          m_stopSource(std::move(other.m_stopSource)),
+	          m_conditionalsPack(std::move(other.m_conditionalsPack)),
+	          m_workThreadObj(std::move(other.m_workThreadObj))
+    	{
         }
         ThreadUnitFP& operator=(ThreadUnitFP&& other) noexcept
         {
@@ -146,19 +85,28 @@ namespace imp
         ThreadUnitFP& operator=(const ThreadUnitFP& other) = delete;
         ThreadUnitFP(const ThreadUnitFP& other) = delete;
     public:
-        auto SetPauseValue(PauseMethod_t pauseMethod)
+        void SetOrderedPause() noexcept
         {
-            // The generic lambda here generates the overload for the specific type held by pauseMethod,
-            // and with the type, calls the call operator with the ordered and unordered pause conditionals packs
-            // in order to perform the appropriate operation for setting/unsetting the pause value.
-            std::visit([&](auto& v) { v(m_conditionalsPack.OrderedPausePack, m_conditionalsPack.UnorderedPausePack); }, pauseMethod );
+            pause::DoOrderedPause(m_conditionalsPack);
         }
 
-        /// <summary> Generally if the thread is not running, there is an error state or it is destructing. </summary>
-        [[nodiscard]]
-    	bool IsRunning() const
+        void SetUnorderedPause() noexcept
         {
-            return m_workThreadObj != nullptr && !m_stopSource.stop_requested();
+            pause::DoUnorderedPause(m_conditionalsPack);
+        }
+
+        void Unpause() noexcept
+        {
+            pause::DoUnpause(m_conditionalsPack);
+        }
+
+        /// <summary> Returns true if thread is processing tasks. </summary>
+        [[nodiscard]]
+    	bool IsWorking() const noexcept
+        {
+            const bool hasTasks = GetNumberOfTasks() > 0;
+            const bool isPaused = pause::IsPausing(m_conditionalsPack) || pause::IsPauseCompleted(m_conditionalsPack);
+            return hasTasks && !isPaused;
         }
 
         /// <summary>
@@ -169,14 +117,14 @@ namespace imp
         /// <remarks> Calling <c>wait_for_pause_completed</c> will likely involve much lower CPU usage than implementing
         /// your own wait function via this method. </remarks>
         [[nodiscard]]
-        bool GetPauseCompletionStatus() const
+        bool GetPauseCompletionStatus() const noexcept
         {
             return m_conditionalsPack.PauseCompletedPack.GetState();
         }
 
         /// <summary> Called to wait for the thread to enter the "paused" state, after
         /// a call to <c>set_pause_value</c> with <b>true</b>. </summary>
-        void WaitForPauseCompleted()
+        void WaitForPauseCompleted() noexcept
         {
             const bool pauseReq = m_conditionalsPack.OrderedPausePack.GetState() || m_conditionalsPack.UnorderedPausePack.GetState();
             const bool needsToWait = !m_conditionalsPack.PauseCompletedPack.GetState();
@@ -184,13 +132,12 @@ namespace imp
             if (needsToWait && pauseReq)
             {
                 m_conditionalsPack.PauseCompletedPack.WaitForTrue();
-                //TODO fix the problem of clearing the pause state when a double pause request is made!
             }
         }
 
         /// <summary> Returns the number of tasks running on the thread task list.</summary>
         [[nodiscard]]
-    	std::size_t GetNumberOfTasks() const
+    	std::size_t GetNumberOfTasks() const noexcept
         {
             return m_taskList.TaskList.size();
         }
@@ -198,13 +145,14 @@ namespace imp
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
         /// the tasks running on the thread. </summary>
         [[nodiscard]]
-    	auto GetTaskSource() const
+    	auto GetTaskSource() const noexcept
         {
             return m_taskList;
         }
 
         /// <summary> Stops the thread, replaces the task list, creates the thread again. </summary>
-        void SetTaskSource(ThreadTaskSource newTaskList)
+        // TODO compare code gen between non-const param and const and ref
+        void SetTaskSource(ThreadTaskSource newTaskList) noexcept
         {
             StartDestruction();
             WaitForDestruction();
@@ -237,7 +185,7 @@ namespace imp
         /// <summary> Destructs the running thread after it finishes running the current task it's on
         /// within the task list. Marks the thread func to stop then joins and waits for it to return. </summary>
         /// <remarks><b>WILL CLEAR the task source!</b> To start the thread again, just set a new task source.</remarks>
-        void DestroyThread()
+        void DestroyThread() noexcept
         {
             StartDestruction();
             WaitForDestruction();
@@ -247,14 +195,14 @@ namespace imp
         /// <summary> Changes stop requested to true... </summary>
         /// <remarks> NOTE: Destruction will occur un-ordered!
         /// If you want the list of tasks in-progress to run until the end, then request an ordered pause first! </remarks>
-        void StartDestruction()
+        void StartDestruction() noexcept
         {
             m_stopSource.request_stop();
             m_conditionalsPack.Notify();
         }
 
         /// <summary> Joins the work thread to the current thread and waits. </summary>
-        void WaitForDestruction()
+        void WaitForDestruction() noexcept
         {
             if (m_workThreadObj != nullptr)
             {
@@ -269,9 +217,9 @@ namespace imp
         /// <summary> The worker function, on the created running thread. </summary>
         /// <param name="stopToken"> Passed in the std::jthread automatically at creation. </param>
         /// <param name="tasks"> List of tasks copied into this worker function, it is not mutated in-use. </param>
-        void threadPoolFunc(const std::stop_token stopToken, const TaskContainer_t tasks)
+        void threadPoolFunc(const std::stop_token stopToken, const TaskContainer_t tasks) noexcept
         {
-            const auto TestAndWaitForPauseEither = [](ThreadConditionals& pauseObj)
+            const auto TestAndWaitForPauseEither = [](Conditionals_t& pauseObj)
             {
                 // If either ordered or unordered pause set
                 if (pauseObj.OrderedPausePack.GetState() || pauseObj.UnorderedPausePack.GetState())
@@ -284,7 +232,7 @@ namespace imp
                     pauseObj.PauseCompletedPack.UpdateState(false);
                 }
             };
-            const auto TestAndWaitForPauseUnordered = [](ThreadConditionals& pauseObj)
+            const auto TestAndWaitForPauseUnordered = [](Conditionals_t& pauseObj)
             {
                 // If either ordered or unordered pause set
                 if (pauseObj.UnorderedPausePack.GetState())
@@ -314,8 +262,11 @@ namespace imp
                     TestAndWaitForPauseUnordered(m_conditionalsPack);
                     //double check outer condition here, as this may be long-running,
                     //causes destruction to occur unordered.
-                    if (stopToken.stop_requested())
-                        break;
+                    if constexpr (UseUnorderedDestruction)
+                    {
+                        if (stopToken.stop_requested())
+                            break;
+                    }
                     // run the task
                     currentTask();
                 }
