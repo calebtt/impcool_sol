@@ -123,7 +123,7 @@ namespace imp
         }
 
         /// <summary> Called to wait for the thread to enter the "paused" state, after
-        /// a call to <c>set_pause_value</c> with <b>true</b>. </summary>
+        /// a call to <c>Set_Type_Pause()</c>. </summary>
         void WaitForPauseCompleted() noexcept
         {
             const bool pauseReq = m_conditionalsPack.OrderedPausePack.GetState() || m_conditionalsPack.UnorderedPausePack.GetState();
@@ -137,7 +137,7 @@ namespace imp
 
         /// <summary> Returns the number of tasks running on the thread task list.</summary>
         [[nodiscard]]
-    	std::size_t GetNumberOfTasks() const noexcept
+    	auto GetNumberOfTasks() const noexcept -> std::size_t
         {
             return m_taskList.TaskList.size();
         }
@@ -145,7 +145,7 @@ namespace imp
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
         /// the tasks running on the thread. </summary>
         [[nodiscard]]
-    	auto GetTaskSource() const noexcept
+    	auto GetTaskSource() const noexcept -> TaskOpsProvider_t
         {
             return m_taskList;
         }
@@ -156,8 +156,8 @@ namespace imp
         {
             StartDestruction();
             WaitForDestruction();
-            m_taskList = newTaskList;
-            CreateThread(newTaskList);
+            m_taskList = std::move(newTaskList);
+            CreateThread(m_taskList);
         }
 
     private:
@@ -165,6 +165,7 @@ namespace imp
         /// <returns> true on thread created, false otherwise (usually thread already created). </returns>
         bool CreateThread(const ThreadTaskSource tasks, const bool isPausedOnStart = false) noexcept
         {
+            [[likely]]
             if (m_workThreadObj == nullptr)
             {
                 //reset some conditionals aka std::condition_variable 
@@ -204,8 +205,10 @@ namespace imp
         /// <summary> Joins the work thread to the current thread and waits. </summary>
         void WaitForDestruction() noexcept
         {
+            [[likely]]
             if (m_workThreadObj != nullptr)
             {
+                [[likely]]
                 if (m_workThreadObj->joinable())
                 {
                     m_workThreadObj->join();
