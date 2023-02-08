@@ -114,7 +114,7 @@ namespace imp
         /// in a paused state. After requesting a pause, a user should query this member fn to know
         /// if/when the operation has completed, or alternatively, call <c>wait_for_pause_completed</c>
         /// </summary>
-        /// <remarks> Calling <c>wait_for_pause_completed</c> will likely involve much lower CPU usage than implementing
+        /// <remarks> Calling <c>WaitForPauseCompleted</c> will likely involve much lower CPU usage than implementing
         /// your own wait function via this method. </remarks>
         [[nodiscard]]
         bool GetPauseCompletionStatus() const noexcept
