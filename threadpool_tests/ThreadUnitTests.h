@@ -1,6 +1,10 @@
 #pragma once
 #include "pch.h"
 #include "CppUnitTest.h"
+#include <barrier>
+#include <mutex>
+#include <atomic>
+#include <memory>
 #include "../immutable_thread_pool/ThreadUnitFP.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -81,22 +85,66 @@ namespace threadpooltests
 		TEST_METHOD(TestPausing)
 		{
 			using namespace  std::chrono_literals;
-			static constexpr std::size_t TaskCount{ 10 };
+			using Counter_t = std::size_t;
+			static constexpr Counter_t TaskCount{ 10 };
 			TaskSource_t tts{};
 
 			AddLotsOfTasks(tts, TaskCount);
 			
-			for (std::size_t i = 0; i < TaskCount; ++i) 
+			for (Counter_t i{}; i < TaskCount; ++i)
 			{
 				ThreadUnit_t tu{ tts };
 				Assert::IsTrue(tu.IsWorking());
 				Assert::IsTrue(tu.GetNumberOfTasks() == TaskCount);
-				std::this_thread::sleep_for(500ms);
+				std::this_thread::sleep_for(50ms);
 				tu.SetUnorderedPause();
-				std::this_thread::sleep_for(500ms);
+				tu.SetOrderedPause();
+				tu.SetUnorderedPause();
+				tu.SetOrderedPause();
+				tu.SetOrderedPause();
+				tu.Unpause();
+				tu.Unpause();
+				tu.SetUnorderedPause();
+				std::this_thread::sleep_for(50ms);
 				tu.WaitForPauseCompleted();
 				Assert::IsTrue(tu.GetPauseCompletionStatus());
 				tu.Unpause();
+			}
+		}
+
+		// Adds a task function that will not complete and asserts that it
+		// properly reports it's ordered pause status.
+		TEST_METHOD(TestPauseStatus)
+		{
+			using namespace  std::chrono_literals;
+
+			std::mutex syncMut;
+			std::atomic<bool> hasStarted{ false };
+			const auto WaitForLatchFn = [&syncMut, &hasStarted]()
+			{
+				hasStarted.store(true, std::memory_order_relaxed);
+				std::scoped_lock tempLock(syncMut);
+			};
+			{
+				syncMut.lock();
+				TaskSource_t tts{ WaitForLatchFn };
+				ThreadUnit_t tu{ tts };
+				// Waits for indicator that thread is running the task.
+				while (!hasStarted)
+					std::this_thread::sleep_for(10ms);
+				// Asserts the correct status is returned by the thread unit while waiting for the mutex.
+				Assert::IsTrue(tu.IsWorking());
+				Assert::IsFalse(tu.GetPauseCompletionStatus());
+				// Release the mutex and wait a suitable length of time before checking status.
+				syncMut.unlock();
+				// Set the pause state.
+				tu.SetOrderedPause();
+				tu.SetUnorderedPause();
+				tu.SetOrderedPause();
+				Assert::IsFalse(tu.IsWorking());
+				std::this_thread::sleep_for(100ms);
+				Assert::IsFalse(tu.IsWorking());
+				Assert::IsTrue(tu.GetPauseCompletionStatus());
 			}
 		}
 	};

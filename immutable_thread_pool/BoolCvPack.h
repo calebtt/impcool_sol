@@ -115,7 +115,7 @@ namespace imp
         }
         /// <summary> Returns the value of the atomic bool SharedData.
         /// It is not necessary to follow the <c>condition_variable</c> procedure just to
-        /// check this value, nor lock the mutex since it's an atomic. </summary>
+        /// check this value, nor (manually) lock the mutex since it's an atomic. </summary>
         /// <returns>bool value of the SharedData</returns>
         bool GetState() const noexcept
         {

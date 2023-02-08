@@ -35,7 +35,7 @@ namespace imp
         // Alias for the ThreadTaskSource which provides a container and some operations.
         using TaskOpsProvider_t = imp::ThreadTaskSource;
         using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
-        using Conditionals_t = imp::pause::ThreadConditionals;
+        using Conditionals_t = imp::ThreadConditionals;
     private:
         /// <summary> Copy of the last list of tasks to be set to run on this work thread.
         /// Should mirror the list of tasks that the worker thread is using. </summary>
@@ -87,26 +87,44 @@ namespace imp
     public:
         void SetOrderedPause() noexcept
         {
-            pause::DoOrderedPause(m_conditionalsPack);
+            DoOrderedPause(m_conditionalsPack);
         }
 
         void SetUnorderedPause() noexcept
         {
-            pause::DoUnorderedPause(m_conditionalsPack);
+            DoUnorderedPause(m_conditionalsPack);
         }
 
         void Unpause() noexcept
         {
-            pause::DoUnpause(m_conditionalsPack);
+            DoUnpause(m_conditionalsPack);
         }
 
-        /// <summary> Returns true if thread is processing tasks. </summary>
+        /// <summary>
+        /// Returns true if thread is created, tasks are added.
+        /// </summary>
+        /// <remarks>Pause state has no effect on this.</remarks>
+        /// <returns>
+        /// True if and only if:
+        /// <para>Stop is not requested.</para>
+        /// <para>The thread is created and running.</para>
+        /// <para>There are tasks in the task list.</para>
+        /// <para>Pause is not requested nor completed.</para>
+        /// </returns>
         [[nodiscard]]
     	bool IsWorking() const noexcept
         {
+            [[unlikely]]
+            if (m_stopSource.stop_requested())
+                return false;
+            [[unlikely]]
+            if (m_workThreadObj == nullptr)
+                return false;
+            //return !GetPauseCompletionStatus();
             const bool hasTasks = GetNumberOfTasks() > 0;
-            const bool isPaused = pause::IsPausing(m_conditionalsPack) || pause::IsPauseCompleted(m_conditionalsPack);
-            return hasTasks && !isPaused;
+            const bool isPausing = IsPausing(m_conditionalsPack);
+            const bool isPauseCompleted = IsPauseCompleted(m_conditionalsPack);
+            return hasTasks ? !isPausing && !isPauseCompleted : false;
         }
 
         /// <summary>
@@ -114,8 +132,11 @@ namespace imp
         /// in a paused state. After requesting a pause, a user should query this member fn to know
         /// if/when the operation has completed, or alternatively, call <c>wait_for_pause_completed</c>
         /// </summary>
-        /// <remarks> Calling <c>WaitForPauseCompleted</c> will likely involve much lower CPU usage than implementing
-        /// your own wait function via this method. </remarks>
+        /// <remarks>
+        /// Calling <c>WaitForPauseCompleted</c> will likely involve much lower CPU usage than implementing
+        /// your own wait function via this method.
+        /// </remarks>
+        /// <returns>True if and only if pause request has been completed.</returns>
         [[nodiscard]]
         bool GetPauseCompletionStatus() const noexcept
         {
@@ -199,16 +220,16 @@ namespace imp
         void StartDestruction() noexcept
         {
             m_stopSource.request_stop();
+            m_conditionalsPack.OrderedPausePack.UpdateState(false);
+            m_conditionalsPack.UnorderedPausePack.UpdateState(false);
             m_conditionalsPack.Notify();
         }
 
         /// <summary> Joins the work thread to the current thread and waits. </summary>
         void WaitForDestruction() noexcept
         {
-            [[likely]]
             if (m_workThreadObj != nullptr)
             {
-                [[likely]]
                 if (m_workThreadObj->joinable())
                 {
                     m_workThreadObj->join();
@@ -225,6 +246,7 @@ namespace imp
             const auto TestAndWaitForPauseEither = [](Conditionals_t& pauseObj)
             {
                 // If either ordered or unordered pause set
+                [[unlikely]]
                 if (pauseObj.OrderedPausePack.GetState() || pauseObj.UnorderedPausePack.GetState())
                 {
                     // Set pause completion event, which sends the notify
@@ -238,6 +260,7 @@ namespace imp
             const auto TestAndWaitForPauseUnordered = [](Conditionals_t& pauseObj)
             {
                 // If either ordered or unordered pause set
+                [[unlikely]]
                 if (pauseObj.UnorderedPausePack.GetState())
                 {
                     // Set pause completion event, which sends the notify
@@ -254,6 +277,7 @@ namespace imp
                 //test for ordered pause
                 TestAndWaitForPauseEither(m_conditionalsPack);
 
+                [[unlikely]]
                 if (tasks.empty())
                 {
                     std::this_thread::sleep_for(EmptyWaitTime);
@@ -267,6 +291,7 @@ namespace imp
                     //causes destruction to occur unordered.
                     if constexpr (UseUnorderedDestruction)
                     {
+                        [[unlikely]]
                         if (stopToken.stop_requested())
                             break;
                     }
