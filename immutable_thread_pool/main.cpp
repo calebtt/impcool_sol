@@ -1,6 +1,6 @@
-#include <cassert>
 #include <iostream>
 #include <string>
+#include <cassert>
 
 #include "ThreadUnitFP.h"
 #include "BoolCvPack.h"
