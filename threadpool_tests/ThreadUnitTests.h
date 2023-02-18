@@ -4,6 +4,7 @@
 #include <barrier>
 #include <mutex>
 #include <atomic>
+#include <latch>
 #include <memory>
 #include "../immutable_thread_pool/ThreadUnitFP.h"
 
@@ -112,32 +113,31 @@ namespace threadpooltests
 			}
 		}
 
-		// Adds a task function that will not complete and asserts that it
-		// properly reports it's ordered pause status.
+		// Adds a task function and asserts that it properly reports IsWorking() and pause status.
 		TEST_METHOD(TestPauseStatus)
 		{
 			using namespace  std::chrono_literals;
-
-			std::mutex syncMut;
-			std::atomic<bool> hasStarted{ false };
-			const auto WaitForLatchFn = [&syncMut, &hasStarted]()
+			// Latch count is 2 for this thread and the created thread
+			std::barrier<> bar{ 2 };
+			const auto WaitForLatchFn = [&]()
 			{
-				hasStarted.store(true, std::memory_order_relaxed);
-				std::scoped_lock tempLock(syncMut);
+				// Thread confirmed running sync point here
+				bar.arrive_and_wait();
+				// Testing block wait here
+				bar.arrive_and_wait();
 			};
 			{
-				syncMut.lock();
+				//syncMut.lock();
 				TaskSource_t tts{ WaitForLatchFn };
 				ThreadUnit_t tu{ tts };
-				// Waits for indicator that thread is running the task.
-				while (!hasStarted)
-					std::this_thread::sleep_for(10ms);
-				// Asserts the correct status is returned by the thread unit while waiting for the mutex.
+				// Waits for barrier confirming that thread is running the task.
+				bar.arrive_and_wait();
+				// Asserts the correct status is returned by the thread unit while waiting for the barrier.
 				Assert::IsTrue(tu.IsWorking());
 				Assert::IsFalse(tu.GetPauseCompletionStatus());
-				// Release the mutex and wait a suitable length of time before checking status.
-				syncMut.unlock();
-				// Set the pause state.
+				// Release the barrier before checking status.
+				bar.arrive_and_wait();
+				// Set a few pause states before testing again.
 				tu.SetOrderedPause();
 				tu.SetUnorderedPause();
 				tu.SetOrderedPause();
