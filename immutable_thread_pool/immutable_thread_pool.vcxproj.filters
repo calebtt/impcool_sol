@@ -35,5 +35,8 @@
     <ClInclude Include="ThreadConditionals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SafeTaskSource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

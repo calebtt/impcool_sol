@@ -23,7 +23,7 @@ void AddLotsOfTasks(auto &tc, const std::size_t count)
 void TestThreadPP()
 {
 	using ThreadUnit_t = imp::ThreadUnitFP;
-	using TaskSource_t = imp::ThreadTaskSource;
+	using TaskSource_t = imp::SafeTaskSource;
 	// here we begin by creating a ThreadTaskSource object, it holds a range of std::function tasks.
 	// and it provides the operations needed to add objects to them, namely synonyms for push_back and push_front
 	// it also handles passing arguments into the task function.

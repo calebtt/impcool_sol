@@ -137,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BoolCvPack.h" />
+    <ClInclude Include="SafeTaskSource.h" />
     <ClInclude Include="ThreadConditionals.h" />
     <ClInclude Include="ThreadConcepts.h" />
     <ClInclude Include="ThreadTaskSource.h" />

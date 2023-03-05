@@ -12,6 +12,7 @@
 #include <variant>
 #include "ThreadTaskSource.h"
 #include "BoolCvPack.h"
+#include "SafeTaskSource.h"
 #include "ThreadConditionals.h"
 
 namespace imp
@@ -33,9 +34,9 @@ namespace imp
         using AtomicBool_t = std::atomic<bool>;
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
         // Alias for the ThreadTaskSource which provides a container and some operations.
-        using TaskOpsProvider_t = imp::ThreadTaskSource;
-        using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
-        using Conditionals_t = imp::ThreadConditionals;
+        using TaskOpsProvider_t = SafeTaskSource;
+        using TaskContainer_t = TaskOpsProvider_t::TaskContainer_t;
+        using Conditionals_t = ThreadConditionals;
     private:
         /// <summary> Copy of the last list of tasks to be set to run on this work thread.
         /// Should mirror the list of tasks that the worker thread is using. </summary>
@@ -51,7 +52,7 @@ namespace imp
         UniquePtrThread_t m_workThreadObj{};
     public:
         /// <summary> Ctor creates the thread. </summary>
-        ThreadUnitFP(const imp::ThreadTaskSource tasks = {}) noexcept
+        ThreadUnitFP(const TaskOpsProvider_t tasks = {}) noexcept
         {
             m_taskList = tasks;
             CreateThread(m_taskList, false);
@@ -160,7 +161,7 @@ namespace imp
         [[nodiscard]]
     	auto GetNumberOfTasks() const noexcept -> std::size_t
         {
-            return m_taskList.TaskList.size();
+            return m_taskList.Get().size();
         }
 
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
@@ -173,20 +174,19 @@ namespace imp
 
         /// <summary> Stops the thread, replaces the task list, creates the thread again. </summary>
         // TODO compare code gen between non-const param and const and ref
-        void SetTaskSource(ThreadTaskSource newTaskList) noexcept
+        void SetTaskSource(TaskOpsProvider_t newTaskList) noexcept
         {
-            StartDestruction();
-            WaitForDestruction();
+            //StartDestruction();
+            //WaitForDestruction();
             m_taskList = std::move(newTaskList);
-            CreateThread(m_taskList);
+            //CreateThread(m_taskList);
         }
 
     private:
     	/// <summary> Starts the work thread running, to execute each task in the list infinitely. </summary>
         /// <returns> true on thread created, false otherwise (usually thread already created). </returns>
-        bool CreateThread(const ThreadTaskSource tasks, const bool isPausedOnStart = false) noexcept
+        bool CreateThread(const TaskOpsProvider_t tasks, const bool isPausedOnStart = false) noexcept
         {
-            [[likely]]
             if (m_workThreadObj == nullptr)
             {
                 //reset some conditionals aka std::condition_variable 
@@ -194,7 +194,8 @@ namespace imp
                 m_conditionalsPack.OrderedPausePack.UpdateState(isPausedOnStart);
                 m_conditionalsPack.UnorderedPausePack.UpdateState(false);
                 //make thread obj
-                m_workThreadObj = std::make_unique<Thread_t>([=, this](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
+                const auto getTaskListFn = [&]() { return m_taskList.Get(); };
+                m_workThreadObj = std::make_unique<Thread_t>([=, this](std::stop_token st) { threadPoolFunc(st, getTaskListFn); });
                 //make local handle to stop_source for thread
                 m_stopSource = m_workThreadObj->get_stop_source();
                 //update conditionals pack to have stop handle
@@ -211,7 +212,7 @@ namespace imp
         {
             StartDestruction();
             WaitForDestruction();
-            m_taskList.TaskList = {};
+            m_taskList = {};
         }
 
         /// <summary> Changes stop requested to true... </summary>
@@ -241,7 +242,7 @@ namespace imp
         /// <summary> The worker function, on the created running thread. </summary>
         /// <param name="stopToken"> Passed in the std::jthread automatically at creation. </param>
         /// <param name="tasks"> List of tasks copied into this worker function, it is not mutated in-use. </param>
-        void threadPoolFunc(const std::stop_token stopToken, const TaskContainer_t tasks) noexcept
+        void threadPoolFunc(const std::stop_token stopToken, const auto taskGetterFn) noexcept
         {
             const auto TestAndWaitForPauseEither = [](Conditionals_t& pauseObj)
             {
@@ -274,13 +275,13 @@ namespace imp
             // While not is stop requested.
             while (!stopToken.stop_requested())
             {
+                // Get a copy of the task list before every iteration.
+                const auto tasks = taskGetterFn();
                 //test for ordered pause
                 TestAndWaitForPauseEither(m_conditionalsPack);
-
-                [[unlikely]]
                 if (tasks.empty())
                 {
-                    std::this_thread::sleep_for(EmptyWaitTime);
+                    std::this_thread::yield();
                 }
                 // Iterate task list, running tasks set for this thread.
                 for (const auto& currentTask : tasks)
@@ -291,7 +292,6 @@ namespace imp
                     //causes destruction to occur unordered.
                     if constexpr (UseUnorderedDestruction)
                     {
-                        [[unlikely]]
                         if (stopToken.stop_requested())
                             break;
                     }

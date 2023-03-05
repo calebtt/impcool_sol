@@ -16,7 +16,7 @@ namespace threadpooltests
 	{
 	public:
 		using ThreadUnit_t = imp::ThreadUnitFP;
-		using TaskSource_t = imp::ThreadTaskSource;
+		using TaskSource_t = imp::SafeTaskSource;
 
 		auto AddLotsOfTasks(auto& tc, const std::size_t count)
 		{
@@ -69,16 +69,20 @@ namespace threadpooltests
 			tu.WaitForPauseCompleted();
 			// test pause completion status
 			Assert::IsTrue(tu.GetPauseCompletionStatus(), L"Paused reported as uncompleted incorrectly.");
+			// setting the task source does not require pausing the thread, or destroying any thread state
 			tu.SetTaskSource({});
 			// test pause completion status
-			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
-			// create a new thread
+			Assert::IsTrue(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
+			// reset task source again, while unpaused
+			tu.Unpause();
 			tu.SetTaskSource({});
 			Assert::IsFalse(tu.IsWorking(), L"Thread performing work when it shouldn't be.");
 			AddLotsOfTasks(tts, TaskCount);
 			tu.SetTaskSource(tts);
 			// test task count is correct
-			Assert::AreEqual(TaskCount, tu.GetNumberOfTasks(), L"Task count doesn't match what is in the thread unit!");
+			const auto tcount = tu.GetNumberOfTasks();
+			Logger::WriteMessage(std::to_wstring(tcount).c_str());
+			Assert::AreEqual(TaskCount, tcount, L"Task count doesn't match what is in the thread unit!");
 			// test pause completion status
 			Assert::IsFalse(tu.GetPauseCompletionStatus(), L"Paused reported as completed incorrectly.");
 		}
