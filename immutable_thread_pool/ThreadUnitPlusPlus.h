@@ -5,7 +5,6 @@
 #include <vector>
 #include <condition_variable>
 #include <stop_token>
-#include <syncstream>
 #include <memory>
 #include <deque>
 #include "ThreadTaskSource.h"
@@ -128,7 +127,8 @@ namespace imp
         }
 
         /// <summary> Generally if the thread is not running, there is an error state or it is destructing. </summary>
-        [[nodiscard]] bool IsRunning() const
+        [[nodiscard]]
+    	bool IsRunning() const
         {
             return m_workThreadObj != nullptr && !m_stopSource.stop_requested();
         }
@@ -161,14 +161,16 @@ namespace imp
         }
 
         /// <summary> Returns the number of tasks running on the thread task list.</summary>
-        [[nodiscard]] std::size_t GetNumberOfTasks() const
+        [[nodiscard]]
+    	std::size_t GetNumberOfTasks() const
         {
             return m_taskList.TaskList.size();
         }
 
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
         /// the tasks running on the thread. </summary>
-        [[nodiscard]] auto GetTaskSource() const
+        [[nodiscard]]
+    	auto GetTaskSource() const -> ThreadTaskSource
         {
             return m_taskList;
         }

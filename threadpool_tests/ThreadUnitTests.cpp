@@ -1,4 +1,3 @@
-#pragma once
 #include "pch.h"
 #include "CppUnitTest.h"
 #include "../immutable_thread_pool/ThreadUnitPlusPlus.h"

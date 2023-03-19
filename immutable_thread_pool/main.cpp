@@ -1,7 +1,8 @@
+#include <cassert>
 #include <iostream>
 #include <string>
+#include <syncstream>
 
-#include "ThreadPooler.h"
 #include "ThreadUnitPlusPlus.h"
 #include "BoolCvPack.h"
 
@@ -70,38 +71,6 @@ void TestThreadPP()
 	tupp.SetTaskSource({});
 }
 
-void TestPooler()
-{
-	static constexpr int TaskCount{ 5 };
-	static constexpr int ThreadCount{ 10 };
-	// Construct a task source object, it provides the functions for adding the lambda as a no-argument non-capturing lambda (which wraps the user provided).
-	imp::ThreadTaskSource tts;
-	// Push the capturing lambda.
-	tts.PushInfiniteTaskBack([&]()
-		{
-			std::osyncstream os(std::cout);
-			os << "A ThreadPooler task is running...\n";
-			os.emit();
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-		});
-	AddLotsOfTasks(tts, TaskCount-1);
-
-	// Construct a thread pooler object
-	imp::ThreadPooler<ThreadCount> tpr;
-
-	// Reset aggregate task source, this evenly apportions the tasks across the number of threads.
-	// If you want to specify which tasks go on which thread, you can access the task array directly.
-	// The 'thread unit' class is usable on it's own, and is exposed for use.
-	// i.e.,
-	// tpr.ThreadList[0].SetTaskSource(tts);
-	tpr.ResetInfiniteTaskArray(tts);
-
-	// Let the thread run the task until 'enter' is pressed.
-	std::cout << "Press Enter to stop the test.\n";
-	std::string buffer;
-	std::getline(std::cin, buffer);
-}
-
 void TestBoolCvPackCopying()
 {
 	// Runs through all the copy/move ctors for BoolCvPack
@@ -147,9 +116,6 @@ int main()
 	std::string buffer;
 	//test thread unit
 	TestThreadPP();
-
-	//test thread pool
-	TestPooler();
 
 	//test copying/moving of BoolCvPack
 	TestBoolCvPackCopying();
