@@ -10,7 +10,7 @@ void AddLotsOfTasks(auto &tc, const std::size_t count)
 {
 	for(size_t i = 0; i < count; i++)
 	{
-		tc.PushInfiniteTaskBack([&](auto taskNumber)
+		imp::PushInfiniteTaskBack(	tc, [&](auto taskNumber)
 			{
 				std::osyncstream os(std::cout);
 				os << "Task with args: [" << taskNumber << "] running...\n";
@@ -53,12 +53,20 @@ void TestThreadPP()
 
 
 	// Push the capturing lambda.
-	tts.PushInfiniteTaskBack([=]()
+	imp::PushInfiniteTaskBack(tts, [=]()
 	{
 		*osp << "A ThreadUnitPlusPlus task is running...\n";
 		osp->emit();
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	});
+	imp::PushInfiniteTaskBack(tts, [=](int i)
+	{
+		*osp << "i=" << i << '\n';
+		osp->emit();
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}, 1);
+
+	AddLotsOfTasks(tts, 10);
 
 	// Construct the thread unit object, pass our constructed task source object.
 	imp::ThreadUnitPlusPlus tupp(tts);

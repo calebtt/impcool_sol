@@ -72,6 +72,7 @@ namespace imp
                     return !is_condition_true || stopPossibleAndRequested;
                 });
         }
+
         /// <summary> Waits for a boolean SharedData atomic to return <b>true</b>.
         /// <b>This uses the condition_variable's "wait()" function</b> and so it will only
         /// wake up and check the condition when another thread calls <c>"notify_one()"</c> or
@@ -85,6 +86,7 @@ namespace imp
                     return is_condition_true || stopPossibleAndRequested;
                 });
         }
+
         /// <summary> Called to update the shared state variable. Notifies all waiting threads
         /// to wake up and perform their wait check. </summary>
         /// <param name="trueOrEnabled"> true to enable, presumably. </param>
@@ -96,6 +98,7 @@ namespace imp
             }
             task_running_cv.notify_all();
         }
+
         /// <summary> Returns the value of the atomic bool SharedData.
         /// It is not necessary to follow the <c>condition_variable</c> procedure just to
         /// check this value, nor lock the mutex since it's an atomic. </summary>

@@ -34,7 +34,7 @@ namespace threadpooltests
 						os.emit();
 						std::this_thread::sleep_for(SleepTime);
 					};
-					tc.PushInfiniteTaskBack(TaskLam, i);
+					imp::PushInfiniteTaskBack(tc, TaskLam, i);
 				}
 			};
 

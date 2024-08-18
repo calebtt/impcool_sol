@@ -12,6 +12,34 @@
 
 namespace imp
 {
+    struct ThreadConditionals
+    {
+        imp::BoolCvPack OrderedPausePack;
+        imp::BoolCvPack UnorderedPausePack;
+        imp::BoolCvPack PauseCompletedPack;
+    };
+
+    // Waits for both pause requests to be false.
+    inline void ThreadConditionWaitForOrderedAndUnorderedFalse(ThreadConditionals& pack)
+    {
+        pack.OrderedPausePack.WaitForFalse();
+        pack.UnorderedPausePack.WaitForFalse();
+    }
+
+    inline void ThreadConditionNotifyAll(ThreadConditionals& pack)
+    {
+        pack.OrderedPausePack.task_running_cv.notify_all();
+        pack.UnorderedPausePack.task_running_cv.notify_all();
+        pack.PauseCompletedPack.task_running_cv.notify_all();
+    }
+
+    inline void ThreadConditionSetStopSource(const std::stop_source sts, ThreadConditionals& pack)
+    {
+        pack.PauseCompletedPack.stop_source = sts;
+        pack.OrderedPausePack.stop_source = sts;
+        pack.UnorderedPausePack.stop_source = sts;
+    }
+
     /// <summary> Fully functional nearly stand-alone class to manage a single thread that has a task list.
     /// Manages running a thread pool thread. The thread can be paused, and destroyed.
     /// The task list can be simply returned as it is not mutated while in use, only copied, or counted.
@@ -27,38 +55,10 @@ namespace imp
         using AtomicBool_t = std::atomic<bool>;
         using UniquePtrThread_t = std::unique_ptr<Thread_t>;
 
-        // Alias for the ThreadTaskSource which provides a container and some operations.
+        // Alias for the ThreadTaskSource which is a container.
         using TaskOpsProvider_t = imp::ThreadTaskSource;
-        using TaskContainer_t = decltype(TaskOpsProvider_t::TaskList);
 
     private:
-        struct ThreadConditionals
-        {
-	        imp::BoolCvPack OrderedPausePack;
-	        imp::BoolCvPack UnorderedPausePack;
-	        imp::BoolCvPack PauseCompletedPack;
-            //BoolCvPack isStopRequested;
-            // Waits for both pause requests to be false.
-            void WaitForBothPauseRequestsFalse()
-            {
-                OrderedPausePack.WaitForFalse();
-                UnorderedPausePack.WaitForFalse();
-            }
-            void Notify()
-            {
-                OrderedPausePack.task_running_cv.notify_all();
-                UnorderedPausePack.task_running_cv.notify_all();
-                PauseCompletedPack.task_running_cv.notify_all();
-            }
-            void SetStopSource(const std::stop_source sts)
-            {
-                PauseCompletedPack.stop_source = sts;
-                OrderedPausePack.stop_source = sts;
-                UnorderedPausePack.stop_source = sts;
-            }
-        };
-    private:
-
         // Pack of items used for pause/unpause/pause-complete "events".
         ThreadConditionals m_conditionalsPack;
 
@@ -73,11 +73,12 @@ namespace imp
         std::stop_source m_stopSource{};
     public:
         /// <summary> Ctor creates the thread. </summary>
-        ThreadUnitPlusPlus(const imp::ThreadTaskSource tasks = {})
+        ThreadUnitPlusPlus(TaskOpsProvider_t tasks = {})
         {
-            m_taskList = tasks;
+            m_taskList = std::move(tasks);
             CreateThread(m_taskList, false);
         }
+
         /// <summary> Dtor destroys the thread. </summary>
         ~ThreadUnitPlusPlus()
         {
@@ -164,24 +165,24 @@ namespace imp
         [[nodiscard]]
     	std::size_t GetNumberOfTasks() const
         {
-            return m_taskList.TaskList.size();
+            return m_taskList.size();
         }
 
         /// <summary> Returns a copy of the last set immutable task list, it should mirror
         /// the tasks running on the thread. </summary>
         [[nodiscard]]
-    	auto GetTaskSource() const -> ThreadTaskSource
+    	auto GetTaskSource() const -> TaskOpsProvider_t
         {
             return m_taskList;
         }
 
         /// <summary> Stops the thread, replaces the task list, creates the thread again. </summary>
-        void SetTaskSource(const ThreadTaskSource newTaskList)
+        void SetTaskSource(ThreadTaskSource newTaskList)
         {
             StartDestruction();
             WaitForDestruction();
-            m_taskList = newTaskList;
-            CreateThread(newTaskList);
+            m_taskList = std::move(newTaskList);
+            CreateThread(m_taskList);
         }
 
         /// <summary> Destructs the running thread after it finishes running the current task it's on
@@ -191,12 +192,12 @@ namespace imp
         {
             StartDestruction();
             WaitForDestruction();
-            m_taskList.TaskList = {};
+            m_taskList = {};
         }
     private:
         /// <summary> Starts the work thread running, to execute each task in the list infinitely. </summary>
         /// <returns> true on thread created, false otherwise (usually thread already created). </returns>
-        bool CreateThread(const ThreadTaskSource tasks, const bool isPausedOnStart = false)
+        bool CreateThread(ThreadTaskSource tasks, const bool isPausedOnStart = false)
         {
             if (m_workThreadObj == nullptr)
             {
@@ -205,11 +206,11 @@ namespace imp
                 m_conditionalsPack.OrderedPausePack.UpdateState(isPausedOnStart);
                 m_conditionalsPack.UnorderedPausePack.UpdateState(false);
                 //make thread obj
-                m_workThreadObj = std::make_unique<Thread_t>([=, this](std::stop_token st) { threadPoolFunc(st, tasks.TaskList); });
+                m_workThreadObj = std::make_unique<Thread_t>([taskList = std::move(tasks), this](std::stop_token st) { threadPoolFunc(st, taskList); });
                 //make local handle to stop_source for thread
                 m_stopSource = m_workThreadObj->get_stop_source();
                 //update conditionals pack to have stop handle
-                m_conditionalsPack.SetStopSource(m_stopSource);
+                ThreadConditionSetStopSource(m_stopSource, m_conditionalsPack);
                 return true;
             }
             return false;
@@ -221,7 +222,7 @@ namespace imp
         void StartDestruction()
         {
             m_stopSource.request_stop();
-            m_conditionalsPack.Notify();
+            ThreadConditionNotifyAll(m_conditionalsPack);
         }
 
         /// <summary> Joins the work thread to the current thread and waits. </summary>
@@ -240,7 +241,7 @@ namespace imp
         /// <summary> The worker function, on the created running thread. </summary>
         /// <param name="stopToken"> Passed in the std::jthread automatically at creation. </param>
         /// <param name="tasks"> List of tasks copied into this worker function, it is not mutated in-use. </param>
-        void threadPoolFunc(const std::stop_token stopToken, const TaskContainer_t tasks)
+        void threadPoolFunc(const std::stop_token stopToken, TaskOpsProvider_t tasks)
         {
             const auto TestAndWaitForPauseEither = [](ThreadConditionals& pauseObj)
             {
@@ -250,7 +251,7 @@ namespace imp
                     // Set pause completion event, which sends the notify
                     pauseObj.PauseCompletedPack.UpdateState(true);
                     // Wait until the pause state is toggled back to false (both)
-                    pauseObj.WaitForBothPauseRequestsFalse();
+                    ThreadConditionWaitForOrderedAndUnorderedFalse(pauseObj);
                     // Reset the pause completed state and continue
                     pauseObj.PauseCompletedPack.UpdateState(false);
                 }
@@ -263,7 +264,7 @@ namespace imp
                     // Set pause completion event, which sends the notify
                     pauseObj.PauseCompletedPack.UpdateState(true);
                     // Wait until the pause state is toggled back to false (both)
-                    pauseObj.WaitForBothPauseRequestsFalse();
+                    ThreadConditionWaitForOrderedAndUnorderedFalse(pauseObj);
                     // Reset the pause completed state and continue
                     pauseObj.UnorderedPausePack.UpdateState(false);
                 }
